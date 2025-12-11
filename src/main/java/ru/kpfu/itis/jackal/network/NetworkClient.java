@@ -24,10 +24,6 @@ public class NetworkClient {
     private PrintWriter out;
     private BufferedReader in;
 
-    /**
-     * -- SETTER --
-     *  Устанавливает слушателя для получения сообщений от сервера
-     */
     @Setter
     private Consumer<GameMessage> messageListener;
     private volatile boolean connected = false;
