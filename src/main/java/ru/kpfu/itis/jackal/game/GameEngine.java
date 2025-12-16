@@ -120,26 +120,30 @@ public class GameEngine {
     }
 
     private void handlePlayerJoin(GameMessage message, ClientHandler client) {
-        // Парсим данные из JSON
         PlayerJoinData joinData = MessageParser.dataFromJson(message.getData(), PlayerJoinData.class);
 
-        // Проверяем, не подключен ли уже игрок
         if (getPlayer(message.getPlayerId()) != null) {
             sendError(client, "Игрок с ID " + message.getPlayerId() + " уже подключен");
             return;
         }
 
-        // Проверяем, не занят ли цвет команды
-        if (isTeamColorTaken(joinData.getTeamColor())) {
-            sendError(client, "Цвет команды " + joinData.getTeamColor() + " уже занят");
+        // Если клиент не прислал цвет — выдаём автоматически
+        String requestedColor = joinData.getTeamColor();
+        String teamColor = requestedColor;
+        if (teamColor == null || teamColor.isBlank()) {
+            teamColor = assignFreeColor();
+            if (teamColor == null) {
+                sendError(client, "Нет свободных цветов команд");
+                return;
+            }
+        } else if (isTeamColorTaken(teamColor)) {
+            sendError(client, "Цвет команды " + teamColor + " уже занят");
             return;
         }
 
-        // Создаем игрока
-        Player player = new Player(message.getPlayerId(), joinData.getPlayerName(), joinData.getTeamColor());
+        Player player = new Player(message.getPlayerId(), joinData.getPlayerName(), teamColor);
         initializePlayerPirates(player);
 
-        // Добавляем в игру
         gameState.addPlayer(player);
         client.setPlayerId(player.getId());
         clients.add(client);
@@ -148,7 +152,16 @@ public class GameEngine {
         broadcastGameState();
     }
 
+    private String assignFreeColor() {
+        String[] colors = {"RED", "BLUE", "GREEN", "YELLOW"};
+        for (String c : colors) {
+            if (!isTeamColorTaken(c)) return c;
+        }
+        return null;
+    }
+
     private boolean isTeamColorTaken(String teamColor) {
+        if (teamColor == null) return false;
         return gameState.getPlayers().stream()
                 .anyMatch(p -> p.getTeamColor().equals(teamColor));
     }
