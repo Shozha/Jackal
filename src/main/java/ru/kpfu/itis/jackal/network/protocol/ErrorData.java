@@ -1,14 +1,12 @@
 package ru.kpfu.itis.jackal.network.protocol;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Setter
 @Getter
+@Builder
 @NoArgsConstructor
-@AllArgsConstructor
 public class ErrorData {
+    private String message;
     private String error;
 }

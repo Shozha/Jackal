@@ -479,7 +479,12 @@ public class GameEngine {
     private void sendError(ClientHandler client, String errorMessage) {
         GameMessage errorMsg = new GameMessage();
         errorMsg.setType(MessageType.ERROR);
-        errorMsg.setData(MessageParser.dataToJson(new ErrorData(errorMessage)));
+        errorMsg.setData(MessageParser.dataToJson(
+            ErrorData.builder()
+                .error("ERROR")
+                .message(errorMessage)
+                .build()
+        ));
         client.sendMessage(errorMsg);
     }
 

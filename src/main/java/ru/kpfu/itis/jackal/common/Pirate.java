@@ -6,7 +6,6 @@ import lombok.Setter;
 @Setter
 @Getter
 public class Pirate {
-    // Геттеры и сеттеры
     private int id;
     private int x;
     private int y;

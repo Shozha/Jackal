@@ -38,6 +38,7 @@ public class GameController {
     private String currentPlayer;
     private int currentRound;
     private boolean isHost = false;
+    private Integer selectedPirateId = null;
 
     public GameController() {
         this.appFrame = new AppFrame("Шакал - Pirates Game", 1200, 800);
@@ -157,21 +158,45 @@ public class GameController {
     }
 
     private void handleCellClick(Integer x, Integer y) {
+
+        // 1️⃣ Выбор пирата
+        if (x == -1) {
+            selectedPirateId = y;
+            gameScreen.setSelectedPirate(y);
+            return;
+        }
+
+        // 2️⃣ Проверка хода
         if (currentPlayer == null || !currentPlayer.equals(playerId)) {
             gameScreen.setActionStatus("✗ Это не ваш ход!");
             return;
         }
 
+        if (selectedPirateId == null) {
+            gameScreen.setActionStatus("✗ Сначала выберите пирата");
+            return;
+        }
+
         try {
-            // ⭐ ОТПРАВЛЯЕМ PLAYER_ACTION - GameEngine обработает
-            String actionData = "{\"action\": \"MOVE\", \"x\": " + x + ", \"y\": " + y + "}";
+            String actionData = """
+                {
+                  "actionType": "MOVE",
+                  "pirateId": %d,
+                  "toX": %d,
+                  "toY": %d
+                }
+                """.formatted(selectedPirateId, x, y);
+
             GameMessage moveMessage = new GameMessage();
             moveMessage.setType(MessageType.PLAYER_ACTION);
             moveMessage.setPlayerId(networkClient.getPlayerId());
             moveMessage.setData(actionData);
 
             networkClient.sendMessage(moveMessage);
-            gameScreen.setActionStatus("Отправлен ход: (" + x + ", " + y + ")");
+            gameScreen.setActionStatus(
+                    "Пират #" + selectedPirateId + " → (" + x + ", " + y + ")"
+            );
+
         } catch (Exception ex) {
             gameScreen.setActionStatus("✗ Ошибка: " + ex.getMessage());
         }
@@ -242,6 +267,12 @@ public class GameController {
                 }
                 else if (type == MessageType.GAME_END) {
                     handleGameEnd(message);
+                }
+                else if (type == MessageType.ERROR) {
+                    JOptionPane.showMessageDialog(appFrame,
+                            "Ошибка от сервера: " + message.getData(),
+                            "Ошибка",
+                            JOptionPane.ERROR_MESSAGE);
                 }
                 else {
                     // ⭐ ДРУГИЕ типы сообщений игнорируем
@@ -321,16 +352,35 @@ public class GameController {
     }
 
     private String formatCell(JsonNode cellNode) {
-        if (cellNode == null) return " ";
+        if (cellNode == null || cellNode.isNull()) return " ";
 
         try {
+            // 1️⃣ ПИРАТ (самый приоритетный)
+            JsonNode pirateNode = cellNode.get("pirate");
+            if (pirateNode != null && !pirateNode.isNull()) {
+                int pirateId = pirateNode.get("id").asInt();
+                return "P" + pirateId; // P1, P2
+            }
+
+            // 2️⃣ ЗОЛОТО
+            JsonNode goldNode = cellNode.get("gold");
+            if (goldNode != null && !goldNode.isNull()) {
+                int amount = goldNode.get("amount").asInt();
+                return String.valueOf(amount); // 1,2,3,5
+            }
+
+            // 3️⃣ ТИП КЛЕТКИ
             String type = cellNode.get("type").asText("SEA");
             return switch (type) {
-                case "PLAIN" -> "P";
-                case "FOREST" -> "F";
-                case "MOUNTAIN" -> "M";
-                case "FORT" -> "X";
-                case "BEACH_RED", "BEACH_BLUE", "BEACH_GREEN", "BEACH_YELLOW" -> "B";
+                case "PLAIN" -> "PLAIN";
+                case "FOREST" -> "FOREST";
+                case "MOUNTAIN" -> "MOUNTAIN";
+                case "FORT" -> "FORT";
+                case "BEACH_RED",
+                     "BEACH_BLUE",
+                     "BEACH_GREEN",
+                     "BEACH_YELLOW" -> type;
+                case "SEA" -> "SEA";
                 default -> " ";
             };
         } catch (Exception e) {
