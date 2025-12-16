@@ -1,4 +1,5 @@
 import ru.kpfu.itis.jackal.network.protocol.*;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
