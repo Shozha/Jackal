@@ -139,8 +139,6 @@ public class GameEngine {
         Player player = new Player(message.getPlayerId(), joinData.getPlayerName(), joinData.getTeamColor());
         initializePlayerPirates(player);
 
-        player.setTeamColor("RED");
-
         // Добавляем в игру
         gameState.addPlayer(player);
         client.setPlayerId(player.getId());
