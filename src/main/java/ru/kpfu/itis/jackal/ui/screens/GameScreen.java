@@ -187,7 +187,7 @@ public class GameScreen extends JPanel {
      * Внутренняя панель для отрисовки доски
      */
     public static class BoardPanel extends JPanel {
-        private final String[][] board;
+        private String[][] board;
         private int selectedRow = -1;
         private int selectedCol = -1;
         private Integer selectedPirateId = null;
