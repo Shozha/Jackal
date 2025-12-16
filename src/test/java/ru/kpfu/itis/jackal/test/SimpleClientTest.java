@@ -1,3 +1,5 @@
+package ru.kpfu.itis.jackal.test;
+
 public class SimpleClientTest {
     public static void main(String[] args) {
         if (args.length < 3) {

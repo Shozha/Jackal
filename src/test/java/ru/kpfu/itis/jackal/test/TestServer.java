@@ -1,3 +1,5 @@
+package ru.kpfu.itis.jackal.test;
+
 import ru.kpfu.itis.jackal.server.GameServer;
 
 public class TestServer {

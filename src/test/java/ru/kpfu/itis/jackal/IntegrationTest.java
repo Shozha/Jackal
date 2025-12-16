@@ -1,3 +1,5 @@
+package ru.kpfu.itis.jackal;
+
 import org.junit.jupiter.api.Test;
 import ru.kpfu.itis.jackal.common.GameState;
 import ru.kpfu.itis.jackal.game.GameEngine;

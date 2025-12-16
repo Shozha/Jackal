@@ -1,4 +1,7 @@
+package ru.kpfu.itis.jackal.test;
+
 import ru.kpfu.itis.jackal.network.protocol.*;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
@@ -55,7 +58,6 @@ public class TestClient {
 
     public void sendMove(int pirateId, int fromX, int fromY, int toX, int toY) {
         MoveActionData moveData = new MoveActionData(pirateId, fromX, fromY, toX, toY);
-        ActionData actionData = new ActionData("MOVE");
         GameMessage message = new GameMessage(MessageType.PLAYER_ACTION, playerId,
                 MessageParser.dataToJson(moveData));
         sendMessage(message);
