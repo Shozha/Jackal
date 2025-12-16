@@ -8,9 +8,5 @@ public enum MessageType {
     PLAYER_READY,     // Игрок готов
     GAME_START,       // Начало игры
     GAME_END,
-    COMBAT_RESULT,    // Результат боя
-    GOLD_UPDATE,       // Изменение золота
     ERROR,
-    GOLD_COLLECTED,     // Добавлено для сбора золота
-    GOLD_DELIVERED      // Добавлено для доставки золота
 }

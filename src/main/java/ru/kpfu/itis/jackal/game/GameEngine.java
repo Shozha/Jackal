@@ -139,6 +139,8 @@ public class GameEngine {
         Player player = new Player(message.getPlayerId(), joinData.getPlayerName(), joinData.getTeamColor());
         initializePlayerPirates(player);
 
+        player.setTeamColor("RED");
+
         // Добавляем в игру
         gameState.addPlayer(player);
         client.setPlayerId(player.getId());
@@ -479,7 +481,7 @@ public class GameEngine {
     private void sendError(ClientHandler client, String errorMessage) {
         GameMessage errorMsg = new GameMessage();
         errorMsg.setType(MessageType.ERROR);
-        errorMsg.setData(MessageParser.dataToJson(new ErrorData(errorMessage)));
+        errorMsg.setData(MessageParser.dataToJson(ErrorData.builder().message(errorMessage)));
         client.sendMessage(errorMsg);
     }
 

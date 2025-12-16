@@ -1,5 +1,7 @@
 package ru.kpfu.itis.jackal.ui.screens;
 
+import lombok.Setter;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -25,6 +27,7 @@ public class GameScreen extends JPanel {
 
     private java.util.function.BiConsumer<Integer, Integer> onCellClicked;
     private Runnable onEndTurn;
+    private Integer selectedPirateId = null;
 
     public GameScreen() {
         setLayout(new BorderLayout());
@@ -147,6 +150,12 @@ public class GameScreen extends JPanel {
         }
     }
 
+    public void setSelectedPirate(int pirateId) {
+        this.selectedPirateId = pirateId;
+        boardPanel.setSelectedPirateId(pirateId);
+        setActionStatus("Выбран пират #" + pirateId);
+    }
+
     public void setGameStatus(String status, boolean isOurTurn) {
         gameStatusLabel.setText(status);
         if (isOurTurn) {
@@ -177,8 +186,12 @@ public class GameScreen extends JPanel {
     /**
      * Внутренняя панель для отрисовки доски
      */
-    public class BoardPanel extends JPanel {
-        private String[][] board;
+    public static class BoardPanel extends JPanel {
+        private final String[][] board;
+        private int selectedRow = -1;
+        private int selectedCol = -1;
+        private Integer selectedPirateId = null;
+        @Setter
         private java.util.function.BiConsumer<Integer, Integer> cellClickListener;
 
         public BoardPanel() {
@@ -193,11 +206,31 @@ public class GameScreen extends JPanel {
                 public void mouseClicked(MouseEvent e) {
                     int col = e.getX() / CELL_SIZE;
                     int row = e.getY() / CELL_SIZE;
+                    if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+                        return;
+                    }
 
-                    if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+                    String cell = board[row][col];
+
+                    // 1. Клик по пирату → выбираем пирата
+                    if (cell != null && cell.startsWith("P")) {
+                        int pirateId = Integer.parseInt(cell.substring(1));
+                        selectedPirateId = pirateId;
+                        repaint();
+
                         if (cellClickListener != null) {
-                            cellClickListener.accept(col, row);
+                            // уведомляем GameScreen о выборе пирата
+                            cellClickListener.accept(-1, pirateId);
                         }
+                        return;
+                    }
+
+                    // 2. Клик по клетке → действие
+                    if (selectedPirateId != null && cellClickListener != null) {
+                        selectedCol = col;
+                        selectedRow = row;
+                        repaint();
+                        cellClickListener.accept(col, row);
                     }
                 }
             });
@@ -221,8 +254,9 @@ public class GameScreen extends JPanel {
             }
         }
 
-        public void setCellClickListener(java.util.function.BiConsumer<Integer, Integer> listener) {
-            this.cellClickListener = listener;
+        public void setSelectedPirateId(Integer pirateId) {
+            this.selectedPirateId = pirateId;
+            repaint();
         }
 
         @Override
@@ -238,7 +272,7 @@ public class GameScreen extends JPanel {
                     int py = y * CELL_SIZE;
 
                     // Фон ячейки
-                    g2d.setColor(Color.WHITE);
+                    g2d.setColor(getCellColor(board[y][x]));
                     g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
 
                     // Сетка
@@ -246,18 +280,48 @@ public class GameScreen extends JPanel {
                     g2d.setStroke(new BasicStroke(1));
                     g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
 
-                    // Текст ячейки
-                    String cellContent = board[y][x];
-                    if (cellContent != null && !cellContent.equals(" ")) {
-                        g2d.setColor(new Color(51, 51, 51));
-                        g2d.setFont(new Font("Arial", Font.BOLD, 10));
-                        FontMetrics fm = g2d.getFontMetrics();
-                        int textX = px + (CELL_SIZE - fm.stringWidth(cellContent)) / 2;
-                        int textY = py + ((CELL_SIZE - fm.getHeight()) / 2) + fm.getAscent();
-                        g2d.drawString(cellContent, textX, textY);
+                    if (x == selectedCol && y == selectedRow) {
+                        g2d.setColor(new Color(255, 0, 0, 120));
+                        g2d.setStroke(new BasicStroke(3));
+                        g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                    }
+
+                    String cell = board[y][x];
+
+                    if (cell != null && cell.startsWith("P")) {
+                        int pirateId = Integer.parseInt(cell.substring(1));
+
+                        g2d.setColor(new Color(244, 67, 54));
+                        g2d.fillOval(px + 10, py + 10, 40, 40);
+
+                        g2d.setColor(Color.WHITE);
+                        g2d.drawString(
+                                String.valueOf(pirateId),
+                                px + CELL_SIZE / 2 - 4,
+                                py + CELL_SIZE / 2 + 4
+                        );
+
+                        if (pirateId == selectedPirateId) {
+                            g2d.setColor(Color.YELLOW);
+                            g2d.setStroke(new BasicStroke(3));
+                            g2d.drawOval(px + 8, py + 8, 44, 44);
+                        }
                     }
                 }
             }
+        }
+
+        private Color getCellColor(String cell) {
+            if (cell == null) return Color.WHITE;
+
+            return switch (cell) {
+                case "SEA" -> new Color(33, 150, 243);
+                case "LAND" -> new Color(139, 195, 74);
+                case "GOLD" -> new Color(255, 193, 7);
+                case "SHIP" -> new Color(121, 85, 72);
+                case "PIRATE" -> new Color(244, 67, 54);
+                default -> Color.WHITE;
+            };
         }
     }
 }
