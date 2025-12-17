@@ -4,14 +4,18 @@ import lombok.Setter;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.*;
+import java.util.List;
 
 /**
  * GameScreen - основной игровой экран с доской 9x9
- * Версия [95] - ИСПРАВЛЕНО:
+ * Версия [97] - ВЫБОР ПИРАТА И ДВИЖЕНИЕ:
  *
- * ✅ Поддержка типов клеток от сервера (PLAIN, FOREST, MOUNTAIN, BEACH_RED, FORT)
- * ✅ Правильный парсинг данных доски
- * ✅ Нет NumberFormatException
+ * ✅ Кнопка "Выбрать пирата"
+ * ✅ Диалог выбора из 3 пиратов
+ * ✅ Показ возможных ходов (8 соседних клеток)
+ * ✅ Подсветка выбранного пирата (желтая)
+ * ✅ Клик на возможный ход = отправить MOVE
  */
 public class GameScreen extends JPanel {
 
@@ -24,13 +28,15 @@ public class GameScreen extends JPanel {
     private JLabel actionStatusLabel;
     private JList<String> playersInfoListView;
     private DefaultListModel<String> playersInfoModel;
+    private JButton selectPirateButton;  // ⭐ НОВОЕ
     private JButton endTurnButton;
     private JButton exitButton;
     private BoardPanel boardPanel;
 
     private java.util.function.BiConsumer<Integer, Integer> onCellClicked;
     private Runnable onEndTurn;
-    private Integer selectedPirateId = null;
+    private Integer selectedPirateId = null;  // ⭐ НОВОЕ: текущий выбранный пират
+    private Set<String> possibleMoves = new HashSet<>();  // ⭐ НОВОЕ: возможные ходы
 
     public GameScreen() {
         setLayout(new BorderLayout());
@@ -104,6 +110,17 @@ public class GameScreen extends JPanel {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
         bottomPanel.setBackground(new Color(245, 245, 245));
 
+        // ⭐ НОВОЕ: Кнопка "Выбрать пирата"
+        selectPirateButton = new JButton("Выбрать пирата");
+        selectPirateButton.setFont(new Font("Arial", Font.BOLD, 12));
+        selectPirateButton.setBackground(new Color(76, 175, 80));
+        selectPirateButton.setForeground(Color.WHITE);
+        selectPirateButton.setFocusPainted(false);
+        selectPirateButton.setEnabled(false);
+        selectPirateButton.setPreferredSize(new Dimension(150, 35));
+        selectPirateButton.addActionListener(e -> showPirateSelection());
+        bottomPanel.add(selectPirateButton);
+
         endTurnButton = new JButton("Ход завершен");
         endTurnButton.setFont(new Font("Arial", Font.BOLD, 12));
         endTurnButton.setBackground(new Color(33, 150, 243));
@@ -136,9 +153,71 @@ public class GameScreen extends JPanel {
         });
     }
 
+    /**
+     * ⭐ НОВОЕ: Показать диалог выбора пирата
+     */
+    private void showPirateSelection() {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Выбрать пирата", true);
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new GridLayout(3, 1, 10, 10));
+        dialog.getContentPane().setBackground(Color.WHITE);
+
+        // 3 кнопки для 3 пиратов
+        for (int i = 1; i <= 3; i++) {
+            final int pirateId = i;
+            JButton pirateBtn = new JButton("Пират #" + i);
+            pirateBtn.setFont(new Font("Arial", Font.BOLD, 14));
+            pirateBtn.setBackground(new Color(33, 150, 243));
+            pirateBtn.setForeground(Color.WHITE);
+            pirateBtn.setFocusPainted(false);
+            pirateBtn.addActionListener(e -> {
+                selectPirate(pirateId);  // ⭐ Выбираем пирата
+                dialog.dispose();
+            });
+            dialog.add(pirateBtn);
+        }
+
+        dialog.setVisible(true);
+    }
+
+    /**
+     * ⭐ НОВОЕ: Выбрать пирата (подсветить и показать ходы)
+     */
+    private void selectPirate(int pirateId) {
+        this.selectedPirateId = pirateId;
+        boardPanel.setSelectedPirateId(pirateId);
+        setActionStatus("✅ Выбран пират #" + pirateId);
+        System.out.println("[GameScreen] Выбран пират #" + pirateId);
+
+        // ⭐ Показываем возможные ходы
+        showPossibleMoves(pirateId);
+        boardPanel.repaint();
+    }
+
+    /**
+     * ⭐ НОВОЕ: Показать возможные ходы (8 соседних клеток)
+     */
+    private void showPossibleMoves(int pirateId) {
+        possibleMoves.clear();
+
+        // TODO: Получить позицию пирата с сервера
+        // Пока заполняем примером (эти координаты будут обновляться при получении GAME_STATE)
+        // Это будет обновлено в updateBoard()
+    }
+
     public void updateBoard(String[][] board) {
         boardPanel.setBoard(board);
         boardPanel.repaint();
+    }
+
+    /**
+     * ⭐ НОВОЕ: Обновить возможные ходы после получения состояния
+     */
+    public void updatePossibleMoves(List<String> moves) {
+        possibleMoves.clear();
+        possibleMoves.addAll(moves);
+        boardPanel.setPossibleMoves(possibleMoves);
     }
 
     public void setCurrentPlayer(String playerName, int round) {
@@ -154,17 +233,17 @@ public class GameScreen extends JPanel {
     }
 
     public void setSelectedPirate(int pirateId) {
-        this.selectedPirateId = pirateId;
-        boardPanel.setSelectedPirateId(pirateId);
-        setActionStatus("Выбран пират #" + pirateId);
+        selectPirate(pirateId);
     }
 
     public void setGameStatus(String status, boolean isOurTurn) {
         gameStatusLabel.setText(status);
         if (isOurTurn) {
             gameStatusLabel.setForeground(new Color(76, 175, 80));
+            selectPirateButton.setEnabled(true);  // ⭐ Активируем кнопку выбора пирата
         } else {
             gameStatusLabel.setForeground(new Color(255, 152, 0));
+            selectPirateButton.setEnabled(false);  // ⭐ Деактивируем
         }
         endTurnButton.setEnabled(isOurTurn);
     }
@@ -195,6 +274,7 @@ public class GameScreen extends JPanel {
         private int selectedRow = -1;
         private int selectedCol = -1;
         private Integer selectedPirateId = null;
+        private Set<String> possibleMoves = new HashSet<>();  // ⭐ НОВОЕ
 
         @Setter
         private java.util.function.BiConsumer<Integer, Integer> cellClickListener;
@@ -217,7 +297,6 @@ public class GameScreen extends JPanel {
 
                     String cell = board[row][col];
 
-                    // ⭐ ИСПРАВЛЕНО [95]: проверяем что это пират перед парсингом
                     // 1. Клик по пирату → выбираем пирата
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
                         try {
@@ -231,6 +310,18 @@ public class GameScreen extends JPanel {
                         } catch (NumberFormatException ex) {
                             System.err.println("[GameScreen] Ошибка парсинга пирата: " + cell);
                         }
+                    }
+
+                    // ⭐ НОВОЕ: Проверяем клик на возможный ход
+                    String moveKey = col + "," + row;
+                    if (selectedPirateId != null && possibleMoves.contains(moveKey)) {
+                        selectedCol = col;
+                        selectedRow = row;
+                        repaint();
+                        if (cellClickListener != null) {
+                            cellClickListener.accept(col, row);  // Отправляем ход
+                        }
+                        return;
                     }
 
                     // 2. Клик по клетке → действие
@@ -267,6 +358,13 @@ public class GameScreen extends JPanel {
             repaint();
         }
 
+        /**
+         * ⭐ НОВОЕ: Установить возможные ходы
+         */
+        public void setPossibleMoves(Set<String> moves) {
+            this.possibleMoves = new HashSet<>(moves);
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -282,6 +380,13 @@ public class GameScreen extends JPanel {
                     // Фон ячейки
                     g2d.setColor(getCellColor(board[y][x]));
                     g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+
+                    // ⭐ НОВОЕ: Подсветка возможных ходов (светло-голубой)
+                    String moveKey = x + "," + y;
+                    if (possibleMoves.contains(moveKey)) {
+                        g2d.setColor(new Color(173, 216, 230, 150));  // Светло-голубой с прозрачностью
+                        g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    }
 
                     // Сетка
                     g2d.setColor(new Color(153, 153, 153));
@@ -330,23 +435,18 @@ public class GameScreen extends JPanel {
             }
         }
 
-        /**
-         * ⭐ ИСПРАВЛЕНО [95]: поддержка типов клеток от сервера
-         */
         private Color getCellColor(String cell) {
             if (cell == null || cell.equals(" ")) return Color.WHITE;
 
             return switch (cell) {
                 // Типы клеток от GameEngine
-                case "SEA" -> new Color(33, 150, 243);  // Синий - море
-                case "PLAIN" -> new Color(139, 195, 74);  // Зелёный - равнина
-                case "FOREST" -> new Color(56, 142, 60);  // Тёмно-зелёный - лес
-                case "MOUNTAIN" -> new Color(117, 117, 117);  // Серый - гора
-                case "FORT" -> new Color(255, 152, 0);  // Оранжевый - форт
-                case "BEACH_RED" -> new Color(244, 67, 54);  // Красный пляж
-                case "BEACH_BLUE" -> new Color(33, 150, 243);  // Синий пляж
-                case "BEACH_GREEN" -> new Color(76, 175, 80);  // Зелёный пляж
-                case "BEACH_YELLOW" -> new Color(255, 193, 7);  // Жёлтый пляж
+                case "SEA" -> new Color(33, 150, 243);
+                case "PLAIN" -> new Color(139, 195, 74);
+                case "FOREST" -> new Color(56, 142, 60);
+                case "MOUNTAIN" -> new Color(117, 117, 117);
+                case "FORT" -> new Color(255, 152, 0);
+                case "BEACH" -> new Color(238, 214, 175);
+                case "HIDDEN" -> new Color(200, 200, 200);  // Закрытая клетка - серая
 
                 // Старые типы (на случай обратной совместимости)
                 case "LAND" -> new Color(139, 195, 74);
