@@ -238,14 +238,22 @@ public class GameScreen extends JPanel {
 
     public void setGameStatus(String status, boolean isOurTurn) {
         gameStatusLabel.setText(status);
+
+        // ⭐ НОВОЕ: Всегда сбрасываем выбор пирата при смене статуса
+        selectedPirateId = null;
+        possibleMoves.clear();
+        boardPanel.setSelectedPirateId(null);
+        boardPanel.setPossibleMoves(possibleMoves);
+
         if (isOurTurn) {
             gameStatusLabel.setForeground(new Color(76, 175, 80));
-            selectPirateButton.setEnabled(true);  // ⭐ Активируем кнопку выбора пирата
+            selectPirateButton.setEnabled(true);  // ✅ АКТИВНА КНОПКА
         } else {
             gameStatusLabel.setForeground(new Color(255, 152, 0));
-            selectPirateButton.setEnabled(false);  // ⭐ Деактивируем
+            selectPirateButton.setEnabled(false);  // ❌ ДЕАКТИВНА КНОПКА
         }
         endTurnButton.setEnabled(isOurTurn);
+        boardPanel.repaint();
     }
 
     public void setActionStatus(String status) {

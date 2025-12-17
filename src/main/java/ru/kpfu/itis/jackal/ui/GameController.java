@@ -180,10 +180,12 @@ public class GameController {
     private void showGame() {
         gameScreen = new GameScreen();
         appFrame.setContent(gameScreen);
+        selectedPirateId = null;
         gameScreen.setEndTurnListener(e -> handleEndTurn());
         gameScreen.setExitListener(e -> handleExit());
         gameScreen.setCellClickListener(this::handleCellClick);
     }
+
 
     private void handleCellClick(Integer x, Integer y) {
         if (x == -1) {
@@ -391,10 +393,14 @@ public class GameController {
         if (gameScreen != null && currentPlayer != null) {
             gameScreen.setCurrentPlayer(currentPlayer, currentRound);
             boolean isOurTurn = currentPlayer.equals(playerId);
+
+            // ⭐ НОВОЕ: Сброс выбора пирата при смене хода
+            selectedPirateId = null;
+
             if (isOurTurn) {
-                gameScreen.setGameStatus("✓ Ваш ход!", true);
+                gameScreen.setGameStatus("✅ Ваш ход! Выберите пирата", true);
             } else {
-                gameScreen.setGameStatus("Ход: " + currentPlayer, false);
+                gameScreen.setGameStatus("⏳ Ход " + currentPlayer, false);
             }
         }
     }
