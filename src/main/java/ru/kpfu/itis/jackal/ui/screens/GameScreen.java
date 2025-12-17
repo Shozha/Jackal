@@ -1,13 +1,17 @@
 package ru.kpfu.itis.jackal.ui.screens;
 
 import lombok.Setter;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
 /**
  * GameScreen - основной игровой экран с доской 9x9
+ * Версия [95] - ИСПРАВЛЕНО:
+ *
+ * ✅ Поддержка типов клеток от сервера (PLAIN, FOREST, MOUNTAIN, BEACH_RED, FORT)
+ * ✅ Правильный парсинг данных доски
+ * ✅ Нет NumberFormatException
  */
 public class GameScreen extends JPanel {
 
@@ -22,7 +26,6 @@ public class GameScreen extends JPanel {
     private DefaultListModel<String> playersInfoModel;
     private JButton endTurnButton;
     private JButton exitButton;
-
     private BoardPanel boardPanel;
 
     private java.util.function.BiConsumer<Integer, Integer> onCellClicked;
@@ -187,17 +190,18 @@ public class GameScreen extends JPanel {
      * Внутренняя панель для отрисовки доски
      */
     public static class BoardPanel extends JPanel {
+
         private String[][] board;
         private int selectedRow = -1;
         private int selectedCol = -1;
         private Integer selectedPirateId = null;
+
         @Setter
         private java.util.function.BiConsumer<Integer, Integer> cellClickListener;
 
         public BoardPanel() {
             this.board = new String[BOARD_SIZE][BOARD_SIZE];
             initializeBoard();
-
             setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
             setBackground(Color.WHITE);
 
@@ -206,23 +210,27 @@ public class GameScreen extends JPanel {
                 public void mouseClicked(MouseEvent e) {
                     int col = e.getX() / CELL_SIZE;
                     int row = e.getY() / CELL_SIZE;
+
                     if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
                         return;
                     }
 
                     String cell = board[row][col];
 
+                    // ⭐ ИСПРАВЛЕНО [95]: проверяем что это пират перед парсингом
                     // 1. Клик по пирату → выбираем пирата
-                    if (cell != null && cell.startsWith("P")) {
-                        int pirateId = Integer.parseInt(cell.substring(1));
-                        selectedPirateId = pirateId;
-                        repaint();
-
-                        if (cellClickListener != null) {
-                            // уведомляем GameScreen о выборе пирата
-                            cellClickListener.accept(-1, pirateId);
+                    if (cell != null && cell.startsWith("P") && cell.length() > 1) {
+                        try {
+                            int pirateId = Integer.parseInt(cell.substring(1));
+                            selectedPirateId = pirateId;
+                            repaint();
+                            if (cellClickListener != null) {
+                                cellClickListener.accept(-1, pirateId);
+                            }
+                            return;
+                        } catch (NumberFormatException ex) {
+                            System.err.println("[GameScreen] Ошибка парсинга пирата: " + cell);
                         }
-                        return;
                     }
 
                     // 2. Клик по клетке → действие
@@ -280,42 +288,67 @@ public class GameScreen extends JPanel {
                     g2d.setStroke(new BasicStroke(1));
                     g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
 
+                    // Выделение выбранной ячейки
                     if (x == selectedCol && y == selectedRow) {
                         g2d.setColor(new Color(255, 0, 0, 120));
                         g2d.setStroke(new BasicStroke(3));
                         g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
                     }
 
+                    // Отрисовка пирата
                     String cell = board[y][x];
+                    if (cell != null && cell.startsWith("P") && cell.length() > 1) {
+                        try {
+                            int pirateId = Integer.parseInt(cell.substring(1));
+                            g2d.setColor(new Color(244, 67, 54));
+                            g2d.fillOval(px + 10, py + 10, 40, 40);
+                            g2d.setColor(Color.WHITE);
+                            g2d.setFont(new Font("Arial", Font.BOLD, 14));
+                            g2d.drawString(String.valueOf(pirateId), px + CELL_SIZE / 2 - 5, py + CELL_SIZE / 2 + 6);
 
-                    if (cell != null && cell.startsWith("P")) {
-                        int pirateId = Integer.parseInt(cell.substring(1));
-
-                        g2d.setColor(new Color(244, 67, 54));
-                        g2d.fillOval(px + 10, py + 10, 40, 40);
-
-                        g2d.setColor(Color.WHITE);
-                        g2d.drawString(
-                                String.valueOf(pirateId),
-                                px + CELL_SIZE / 2 - 4,
-                                py + CELL_SIZE / 2 + 4
-                        );
-
-                        if (pirateId == selectedPirateId) {
-                            g2d.setColor(Color.YELLOW);
-                            g2d.setStroke(new BasicStroke(3));
-                            g2d.drawOval(px + 8, py + 8, 44, 44);
+                            // Если выбран этот пират, обвести жёлтой рамкой
+                            if (pirateId == selectedPirateId) {
+                                g2d.setColor(Color.YELLOW);
+                                g2d.setStroke(new BasicStroke(3));
+                                g2d.drawOval(px + 8, py + 8, 44, 44);
+                            }
+                        } catch (NumberFormatException ex) {
+                            // Молча пропускаем неправильные пираты
                         }
+                    }
+                    // Отрисовка золота
+                    else if (cell != null && Character.isDigit(cell.charAt(0))) {
+                        g2d.setColor(new Color(255, 193, 7));
+                        g2d.fillRect(px + 15, py + 15, 30, 30);
+                        g2d.setColor(new Color(255, 152, 0));
+                        g2d.drawRect(px + 15, py + 15, 30, 30);
+                        g2d.setColor(Color.BLACK);
+                        g2d.setFont(new Font("Arial", Font.BOLD, 10));
+                        g2d.drawString(cell, px + CELL_SIZE / 2 - 3, py + CELL_SIZE / 2 + 4);
                     }
                 }
             }
         }
 
+        /**
+         * ⭐ ИСПРАВЛЕНО [95]: поддержка типов клеток от сервера
+         */
         private Color getCellColor(String cell) {
-            if (cell == null) return Color.WHITE;
+            if (cell == null || cell.equals(" ")) return Color.WHITE;
 
             return switch (cell) {
-                case "SEA" -> new Color(33, 150, 243);
+                // Типы клеток от GameEngine
+                case "SEA" -> new Color(33, 150, 243);  // Синий - море
+                case "PLAIN" -> new Color(139, 195, 74);  // Зелёный - равнина
+                case "FOREST" -> new Color(56, 142, 60);  // Тёмно-зелёный - лес
+                case "MOUNTAIN" -> new Color(117, 117, 117);  // Серый - гора
+                case "FORT" -> new Color(255, 152, 0);  // Оранжевый - форт
+                case "BEACH_RED" -> new Color(244, 67, 54);  // Красный пляж
+                case "BEACH_BLUE" -> new Color(33, 150, 243);  // Синий пляж
+                case "BEACH_GREEN" -> new Color(76, 175, 80);  // Зелёный пляж
+                case "BEACH_YELLOW" -> new Color(255, 193, 7);  // Жёлтый пляж
+
+                // Старые типы (на случай обратной совместимости)
                 case "LAND" -> new Color(139, 195, 74);
                 case "GOLD" -> new Color(255, 193, 7);
                 case "SHIP" -> new Color(121, 85, 72);

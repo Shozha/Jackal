@@ -6,6 +6,7 @@ import lombok.Setter;
 @Setter
 @Getter
 public class Pirate {
+
     private int id;
     private int x;
     private int y;
@@ -24,4 +25,32 @@ public class Pirate {
         this.y = startY;
     }
 
+    /**
+     * ⭐ НОВОЕ: метод для сбора золота
+     */
+    public void collectGold(int amount) {
+        this.goldCarrying += amount;
+        System.out.println("Пират #" + id + " собрал " + amount + " золота. Всего: " + this.goldCarrying);
+    }
+
+    /**
+     * ⭐ НОВОЕ: метод для сдачи золота
+     */
+    public int depositGold() {
+        int deposited = this.goldCarrying;
+        this.goldCarrying = 0;
+        System.out.println("Пират #" + id + " сдал " + deposited + " золота");
+        return deposited;
+    }
+
+    @Override
+    public String toString() {
+        return "Pirate{" +
+                "id=" + id +
+                ", x=" + x +
+                ", y=" + y +
+                ", goldCarrying=" + goldCarrying +
+                ", alive=" + alive +
+                '}';
+    }
 }
