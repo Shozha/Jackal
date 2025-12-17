@@ -14,6 +14,8 @@ public class MainMenuScreen extends JPanel {
     private JTextField portField;
     private JLabel statusLabel;
     private JButton connectButton;
+    private JRadioButton hostRadio;
+    private JRadioButton clientRadio;
     private JButton exitButton;
     
     private Runnable onConnect;
@@ -72,6 +74,23 @@ public class MainMenuScreen extends JPanel {
         gbc.gridy = 5;
         gbc.gridx = 0;
         add(new JLabel(""), gbc);
+
+        gbc.gridy = 6;
+        gbc.gridx = 0;
+        add(new JLabel("Режим:"), gbc);
+
+        JPanel modePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        hostRadio = new JRadioButton("Создать игру (я хост)");
+        clientRadio = new JRadioButton("Подключиться к игре");
+        ButtonGroup group = new ButtonGroup();
+        group.add(hostRadio);
+        group.add(clientRadio);
+        hostRadio.setSelected(true); // по умолчанию первый станет хостом
+        modePanel.add(hostRadio);
+        modePanel.add(clientRadio);
+
+        gbc.gridx = 1;
+        add(modePanel, gbc);
         
         // Кнопки
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
@@ -92,7 +111,7 @@ public class MainMenuScreen extends JPanel {
         exitButton.setPreferredSize(new Dimension(150, 40));
         buttonPanel.add(exitButton);
         
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         add(buttonPanel, gbc);
@@ -101,10 +120,14 @@ public class MainMenuScreen extends JPanel {
         statusLabel = new JLabel("");
         statusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         statusLabel.setForeground(new Color(244, 67, 54));
-        gbc.gridy = 7;
+        gbc.gridy = 8;           // <-- и статус ещё ниже
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         add(statusLabel, gbc);
+    }
+
+    public boolean isHostSelected() {
+        return hostRadio.isSelected();
     }
     
     public String getPlayerName() {

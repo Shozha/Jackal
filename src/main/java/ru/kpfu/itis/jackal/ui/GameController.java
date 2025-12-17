@@ -59,6 +59,7 @@ public class GameController {
         String name = mainMenuScreen.getPlayerName();
         String host = mainMenuScreen.getHost();
         int port = mainMenuScreen.getPort();
+        boolean createServer = mainMenuScreen.isHostSelected();
 
         if (name == null || name.trim().isEmpty()) {
             mainMenuScreen.setStatus("✗ Введите имя игрока", true);
@@ -81,8 +82,7 @@ public class GameController {
 
         new Thread(() -> {
             try {
-                // Если хост = localhost, запускаем встроенный сервер
-                if (isLocalhost(host)) {
+                if (createServer) {              // <- только если явно выбран «я хост»
                     startEmbeddedServer(port);
                     this.isHost = true;
                     mainMenuScreen.setStatus("Сервер запущен, подключение...", false);
@@ -103,16 +103,12 @@ public class GameController {
         }).start();
     }
 
-    private boolean isLocalhost(String host) {
-        return host.equals("localhost") || host.equals("127.0.0.1");
-    }
-
-    private void startEmbeddedServer(int port) throws Exception {
-        gameServer = new GameServer();
+    private void startEmbeddedServer(int port) {
+        gameServer = new GameServer(port);
 
         serverThread = new Thread(() -> {
             try {
-                System.out.println("[GameController] ⭐ Запуск встроенного сервера на порту 8888...");
+                System.out.println("[GameController] ⭐ Запуск встроенного сервера на порту " + port + "...");
                 gameServer.start();
             } catch (Exception e) {
                 System.err.println("[GameController] ✗ Ошибка при запуске сервера:");
