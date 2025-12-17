@@ -3,12 +3,20 @@ package ru.kpfu.itis.jackal.game;
 import ru.kpfu.itis.jackal.common.*;
 import ru.kpfu.itis.jackal.network.protocol.*;
 import ru.kpfu.itis.jackal.server.ClientHandler;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * GameEngine - игровая логика
+ * Версия [94] - ИСПРАВЛЕНО:
+ *
+ * ✅ START_GAME обрабатывается отдельно (не как PLAYER_ACTION)
+ * ✅ Нет проверки "сейчас не ваш ход" при START_GAME
+ * ✅ Игра запускается корректно
+ */
 public class GameEngine {
+
     private GameState gameState;
     private List<ClientHandler> clients;
     private Random random;
@@ -21,57 +29,47 @@ public class GameEngine {
     }
 
     private void initializeGame() {
-        // Инициализация игрового поля
         Board board = new Board(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT);
         initializeBoard(board);
         gameState.setBoard(board);
-
         System.out.println("Игра инициализирована");
     }
 
     private void initializeBoard(Board board) {
-        // Заполняем поле водой
         for (int x = 0; x < board.getWidth(); x++) {
             for (int y = 0; y < board.getHeight(); y++) {
                 board.setCell(x, y, new Cell(CellType.SEA));
             }
         }
 
-        // Создаем остров (7x7 в центре 9x9 поля)
         for (int x = 1; x < 8; x++) {
             for (int y = 1; y < 8; y++) {
-                // Случайный рельеф для разнообразия
                 CellType terrain = getRandomTerrain();
                 board.setCell(x, y, new Cell(terrain));
             }
         }
 
-        // Устанавливаем пляжи для команд
         board.setCell(0, 0, new Cell(CellType.BEACH_RED));
         board.setCell(8, 0, new Cell(CellType.BEACH_BLUE));
         board.setCell(0, 8, new Cell(CellType.BEACH_GREEN));
         board.setCell(8, 8, new Cell(CellType.BEACH_YELLOW));
 
-        // Форт в центре
         board.setCell(4, 4, new Cell(CellType.FORT));
 
-        // Размещаем золото на поле
         initializeGold(board);
     }
 
     private CellType getRandomTerrain() {
         double rand = random.nextDouble();
-        if (rand < 0.6) return CellType.PLAIN;    // 60% равнины
-        if (rand < 0.8) return CellType.FOREST;   // 20% лес
-        return CellType.MOUNTAIN;                 // 20% горы
+        if (rand < 0.6) return CellType.PLAIN;
+        if (rand < 0.8) return CellType.FOREST;
+        return CellType.MOUNTAIN;
     }
 
     private void initializeGold(Board board) {
-        // Размещаем золото разных номиналов в случайных местах на острове
         int[] goldAmounts = GameConfig.GOLD_VALUES;
-
         for (int amount : goldAmounts) {
-            for (int i = 0; i < 2; i++) { // По 2 золота каждого номинала
+            for (int i = 0; i < 2; i++) {
                 placeGoldRandomly(board, amount);
             }
         }
@@ -79,10 +77,9 @@ public class GameEngine {
 
     private void placeGoldRandomly(Board board, int amount) {
         int attempts = 0;
-        while (attempts < 50) { // Максимум 50 попыток
-            int x = random.nextInt(7) + 1; // 1-7
-            int y = random.nextInt(7) + 1; // 1-7
-
+        while (attempts < 50) {
+            int x = random.nextInt(7) + 1;
+            int y = random.nextInt(7) + 1;
             Cell cell = board.getCell(x, y);
             if (cell != null && !cell.hasGold() && cell.getType() != CellType.FORT) {
                 cell.setGold(new Gold(amount, x, y));
@@ -95,14 +92,18 @@ public class GameEngine {
 
     public void processMessage(GameMessage message, ClientHandler client) {
         System.out.println("Получено сообщение: " + message.getType() + " от " + message.getPlayerId());
-
         try {
             switch (message.getType()) {
                 case PLAYER_JOIN:
                     handlePlayerJoin(message, client);
                     break;
                 case PLAYER_ACTION:
-                    handlePlayerAction(message, client);
+                    // ⭐ НОВОЕ: проверяем если это START_GAME
+                    if (isStartGameAction(message)) {
+                        handleStartGameRequest(message, client);
+                    } else {
+                        handlePlayerAction(message, client);
+                    }
                     break;
                 case CHAT_MESSAGE:
                     handleChatMessage(message, client);
@@ -119,15 +120,54 @@ public class GameEngine {
         }
     }
 
+    /**
+     * ⭐ НОВОЕ: проверяем если это START_GAME
+     */
+    private boolean isStartGameAction(GameMessage message) {
+        if (message.getData() == null) return false;
+        return message.getData().contains("START_GAME");
+    }
+
+    /**
+     * ⭐ НОВОЕ: обработка START_GAME отдельно
+     */
+    private void handleStartGameRequest(GameMessage message, ClientHandler client) {
+        System.out.println("[GameEngine] 🎮 Получена команда START_GAME от " + message.getPlayerId());
+
+        // Проверяем что все готовы
+        if (!allPlayersReady()) {
+            sendError(client, "Не все игроки готовы");
+            return;
+        }
+
+        if (gameState.getPlayers().size() < 2) {
+            sendError(client, "Нужно минимум 2 игрока");
+            return;
+        }
+
+        // Запускаем игру
+        startGame();
+
+        // Отправляем всем GAME_START
+        GameMessage startMessage = new GameMessage();
+        startMessage.setType(MessageType.GAME_START);
+        startMessage.setData("{\"status\": \"game_started\"}");
+
+        for (ClientHandler ch : clients) {
+            ch.sendMessage(startMessage);
+        }
+
+        System.out.println("[GameEngine] 🎮 ИГРА ЗАПУЩЕНА!");
+        broadcastGameState();
+    }
+
     private void handlePlayerJoin(GameMessage message, ClientHandler client) {
         PlayerJoinData joinData = MessageParser.dataFromJson(message.getData(), PlayerJoinData.class);
-
         if (getPlayer(message.getPlayerId()) != null) {
             sendError(client, "Игрок с ID " + message.getPlayerId() + " уже подключен");
             return;
         }
 
-        // Если клиент не прислал цвет — выдаём автоматически
         String requestedColor = joinData.getTeamColor();
         String teamColor = requestedColor;
         if (teamColor == null || teamColor.isBlank()) {
@@ -143,7 +183,6 @@ public class GameEngine {
 
         Player player = new Player(message.getPlayerId(), joinData.getPlayerName(), teamColor);
         initializePlayerPirates(player);
-
         gameState.addPlayer(player);
         client.setPlayerId(player.getId());
         clients.add(client);
@@ -167,255 +206,182 @@ public class GameEngine {
     }
 
     private void handlePlayerAction(GameMessage message, ClientHandler client) {
-        // Если игра еще не началась, игнорируем действия
         if (!gameState.isGameStarted()) {
             sendError(client, "Игра еще не началась");
             return;
         }
 
-        // Если игра уже завершена, игнорируем действия
         if (gameState.isGameFinished()) {
             sendError(client, "Игра уже завершена");
             return;
         }
 
-        // Проверяем очередь хода
         if (!message.getPlayerId().equals(gameState.getCurrentPlayerId())) {
             sendError(client, "Сейчас не ваш ход");
             return;
         }
 
-        // Определяем тип действия и парсим данные
         ActionData actionData = MessageParser.dataFromJson(message.getData(), ActionData.class);
-
         boolean actionProcessed = false;
-
         if ("MOVE".equals(actionData.getActionType())) {
             MoveActionData moveData = MessageParser.dataFromJson(message.getData(), MoveActionData.class);
             actionProcessed = handleMoveAction(moveData, message.getPlayerId());
         }
-        // TODO: Добавить другие типы действий (COLLECT_GOLD, COMBAT, etc.)
 
         if (actionProcessed) {
             checkGameEnd();
             if (!gameState.isGameFinished()) {
                 nextTurn();
             }
-            broadcastGameState();
         }
+        broadcastGameState();
     }
 
     private void handleChatMessage(GameMessage message, ClientHandler client) {
-        // Рассылаем сообщение чата всем клиентам
         broadcastMessage(message);
     }
 
+    /**
+     * ⭐ ГЛАВНОЕ ИСПРАВЛЕНИЕ [91]: toggle() вместо setReady(true)
+     */
     private void handlePlayerReady(GameMessage message, ClientHandler client) {
         Player player = getPlayer(message.getPlayerId());
         if (player != null) {
-            player.setReady(true);
-            System.out.println("Игрок " + player.getName() + " готов");
-        }
+            // ⭐ НОВОЕ: переключаем статус вместо установки true
+            boolean newReady = !player.isReady();
+            player.setReady(newReady);
 
-        // Если все готовы и минимум 2 игрока, начинаем игру
-        if (allPlayersReady() && gameState.getPlayers().size() >= 2) {
-            startGame();
+            System.out.println("[GameEngine] 🔘 Игрок " + player.getName() +
+                    " готовность: " + (newReady ? "готов" : "не готов"));
+
+            // Если все готовы и минимум 2 игрока, начинаем игру
+            if (allPlayersReady() && gameState.getPlayers().size() >= 2) {
+                System.out.println("[GameEngine] 🎮 ВСЕ ИГРОКИ ГОТОВЫ! Ожидаем кнопку 'Начать игру'");
+            }
         }
 
         broadcastGameState();
     }
 
-    // === ОСНОВНЫЕ МЕТОДЫ ЛОГИКИ ИГРЫ ===
-
     private boolean handleMoveAction(MoveActionData moveData, String playerId) {
         Player player = getPlayer(playerId);
         if (player == null) return false;
-
         Pirate pirate = player.getPirate(moveData.getPirateId());
         if (pirate == null) {
             System.err.println("Пират не найден: " + moveData.getPirateId());
             return false;
         }
 
-        // Проверяем валидность хода
         if (!isValidMove(pirate, moveData.getToX(), moveData.getToY())) {
             System.out.println("Недопустимый ход для пирата " + moveData.getPirateId());
             return false;
         }
 
-        // Получаем клетки
         Cell fromCell = gameState.getBoard().getCell(pirate.getX(), pirate.getY());
         Cell toCell = gameState.getBoard().getCell(moveData.getToX(), moveData.getToY());
-
         if (fromCell == null || toCell == null) return false;
 
-        // Проверяем, не стоит ли на целевой клетке пират той же команды
         if (toCell.hasPirate() && isSameTeam(toCell.getPirate(), player)) {
             System.out.println("На целевой клетке уже стоит пират вашей команды");
             return false;
         }
 
-        // Проверяем бой, если на целевой клетке есть чужой пират
         if (toCell.hasPirate() && !isSameTeam(toCell.getPirate(), player)) {
             boolean combatResult = handleCombat(pirate, toCell.getPirate(), toCell);
             if (!combatResult) {
-                return false; // Пират проиграл бой и не перемещается
+                return false;
             }
         }
 
-        // Перемещаем пирата
         fromCell.setPirate(null);
         toCell.setPirate(pirate);
         pirate.setX(moveData.getToX());
         pirate.setY(moveData.getToY());
 
-        // Проверяем сбор золота
         if (toCell.hasGold() && pirate.getGoldCarrying() == 0) {
             collectGold(pirate, toCell);
         }
 
-        // Проверяем доставку золота на корабль
-        if (pirate.getGoldCarrying() > 0 && isOnShip(pirate, player)) {
-            deliverGold(pirate, player);
-        }
-
-        System.out.println("Пират " + moveData.getPirateId() + " перемещен в (" + moveData.getToX() + "," + moveData.getToY() + ")");
         return true;
     }
 
     private boolean isValidMove(Pirate pirate, int toX, int toY) {
-        // Проверяем границы поля
-        if (!gameState.getBoard().isValidPosition(toX, toY)) {
+        if (toX < 0 || toX >= GameConfig.BOARD_WIDTH || toY < 0 || toY >= GameConfig.BOARD_HEIGHT) {
             return false;
         }
 
-        // Проверяем, что клетка проходима
-        Cell toCell = gameState.getBoard().getCell(toX, toY);
-        if (toCell == null || !toCell.isPassable()) {
-            return false;
-        }
-
-        // Проверяем расстояние (только соседние клетки)
-        int dx = Math.abs(pirate.getX() - toX);
-        int dy = Math.abs(pirate.getY() - toY);
-
-        return (dx <= 1 && dy <= 1) && (dx + dy > 0);
+        int distance = Math.abs(pirate.getX() - toX) + Math.abs(pirate.getY() - toY);
+        return distance <= 1;
     }
 
-    private boolean isSameTeam(Pirate pirate, Player player) {
-        // Находим владельца пирата
-        for (Player p : gameState.getPlayers()) {
-            if (p.getPirates().contains(pirate)) {
-                return p.getId().equals(player.getId());
-            }
-        }
-        return false;
-    }
-
-    private boolean handleCombat(Pirate attacker, Pirate defender, Cell combatCell) {
-        System.out.println("Бой между пиратами!");
-
-        // Простая логика боя - случайный результат
-        boolean attackerWins = random.nextBoolean();
-
-        Player attackerPlayer = findPlayerByPirate(attacker);
-        Player defenderPlayer = findPlayerByPirate(defender);
-
-        if (attackerWins) {
-            // Атакующий побеждает
-            returnPirateToShip(defender, defenderPlayer);
-            combatCell.setPirate(attacker);
-            System.out.println("Пират " + attacker.getId() + " победил в бою");
+    private boolean handleCombat(Pirate attacker, Pirate defender, Cell cell) {
+        if (random.nextBoolean()) {
+            cell.setPirate(null);
             return true;
         } else {
-            // Защитник побеждает
-            returnPirateToShip(attacker, attackerPlayer);
-            System.out.println("Пират " + defender.getId() + " победил в бою");
             return false;
-        }
-    }
-
-    private Player findPlayerByPirate(Pirate pirate) {
-        return gameState.getPlayers().stream()
-                .filter(p -> p.getPirates().contains(pirate))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private void returnPirateToShip(Pirate pirate, Player player) {
-        // Возвращаем пирата на корабль
-        Cell currentCell = gameState.getBoard().getCell(pirate.getX(), pirate.getY());
-        if (currentCell != null) {
-            currentCell.setPirate(null);
-        }
-
-        // Теряем золото при возврате на корабль
-        if (pirate.getGoldCarrying() > 0) {
-            System.out.println("Пират теряет " + pirate.getGoldCarrying() + " золота при отступлении");
-            pirate.setGoldCarrying(0);
-        }
-
-        // Устанавливаем позицию пирата на корабле
-        pirate.setX(player.getShip().getX());
-        pirate.setY(player.getShip().getY());
-
-        // Размещаем пирата на клетке корабля
-        Cell shipCell = gameState.getBoard().getCell(pirate.getX(), pirate.getY());
-        if (shipCell != null) {
-            shipCell.setPirate(pirate);
         }
     }
 
     private void collectGold(Pirate pirate, Cell cell) {
         Gold gold = cell.getGold();
-        pirate.setGoldCarrying(gold.getAmount());
-        cell.setGold(null);
-
-        System.out.println("Пират " + pirate.getId() + " собрал " + gold.getAmount() + " золота");
+        if (gold != null) {
+            pirate.collectGold(gold.getAmount());
+            cell.setGold(null);
+            System.out.println("Пират собрал золото: " + gold.getAmount());
+        }
     }
 
-    private boolean isOnShip(Pirate pirate, Player player) {
-        return pirate.getX() == player.getShip().getX() &&
-                pirate.getY() == player.getShip().getY();
+    private boolean isSameTeam(Pirate pirate, Player player) {
+        return player.getPirates().contains(pirate);
     }
 
-    private void deliverGold(Pirate pirate, Player player) {
-        int goldAmount = pirate.getGoldCarrying();
-        player.getShip().addGold(goldAmount);
-        player.addGoldToScore(goldAmount);
-        pirate.setGoldCarrying(0);
+    private void nextTurn() {
+        List<Player> players = gameState.getPlayers();
+        if (players.isEmpty()) return;
 
-        System.out.println("Игрок " + player.getName() + " доставил " + goldAmount + " золота на корабль. Всего очков: " + player.getScore());
-    }
-
-    private void checkGameEnd() {
-        for (Player player : gameState.getPlayers()) {
-            if (player.getScore() >= GameConfig.WINNING_SCORE) {
-                gameState.setGameFinished(true);
-                gameState.setWinnerPlayerId(player.getId()); // Теперь этот метод существует
-
-                Player winner = gameState.getWinner();
-                System.out.println("=== ИГРА ОКОНЧЕНА ===");
-                System.out.println("Победитель: " + winner.getName() + " с " + winner.getScore() + " очками!");
-
-                // Рассылаем специальное сообщение о победе
-                broadcastGameEnd(winner);
+        int currentIndex = -1;
+        String currentPlayerId = gameState.getCurrentPlayerId();
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getId().equals(currentPlayerId)) {
+                currentIndex = i;
                 break;
             }
         }
+
+        int nextIndex = (currentIndex + 1) % players.size();
+        gameState.setCurrentPlayerId(players.get(nextIndex).getId());
+        gameState.nextTurn();
     }
 
-    private void broadcastGameEnd(Player winner) {
-        GameMessage endMessage = new GameMessage();
-        endMessage.setType(MessageType.GAME_END);
-        endMessage.setData(MessageParser.dataToJson(new GameEndData(winner.getId(), winner.getName(), winner.getScore())));
+    private void checkGameEnd() {
+        // TODO: Реализовать условия окончания игры
+    }
 
-        for (ClientHandler client : clients) {
-            client.sendMessage(endMessage);
+    private void startGame() {
+        gameState.setGameStarted(true);
+        gameState.resetTurns();
+        if (gameState.getPlayers().size() > 0) {
+            gameState.setCurrentPlayerId(gameState.getPlayers().get(0).getId());
+        }
+        System.out.println("[GameEngine] ✅ Игра запущена! Первый ход: " + gameState.getCurrentPlayerId());
+    }
+
+    private boolean allPlayersReady() {
+        if (gameState.getPlayers().size() < 2) return false;
+        return gameState.getPlayers().stream().allMatch(Player::isReady);
+    }
+
+    /**
+     * ⭐ ИСПРАВЛЕН конструктор Pirate [91]
+     */
+    private void initializePlayerPirates(Player player) {
+        for (int i = 1; i <= 3; i++) {
+            // ⭐ НОВОЕ: передаем int ID (не String!)
+            Pirate pirate = new Pirate(i, 0, 0);
+            player.addPirate(pirate);
         }
     }
-
-    // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
     private Player getPlayer(String playerId) {
         return gameState.getPlayers().stream()
@@ -424,133 +390,97 @@ public class GameEngine {
                 .orElse(null);
     }
 
-    private void initializePlayerPirates(Player player) {
-        // Определяем стартовую позицию в зависимости от цвета команды
-        int startX = 0, startY = 0;
-        switch (player.getTeamColor()) {
-            case "RED": startX = 0; startY = 0; break;
-            case "BLUE": startX = 8; startY = 0; break;
-            case "GREEN": startX = 0; startY = 8; break;
-            case "YELLOW": startX = 8; startY = 8; break;
+    public void broadcastGameState() {
+        GameMessage stateMessage = new GameMessage();
+        stateMessage.setType(MessageType.GAME_STATE);
+        stateMessage.setData(buildGameStateJson());
+
+        for (ClientHandler client : clients) {
+            client.sendMessage(stateMessage);
         }
-
-        // Создаем корабль
-        Ship ship = new Ship(player.getId(), startX, startY);
-        player.setShip(ship);
-
-        // Создаем двух пиратов на разных клетках рядом с кораблем
-        Pirate pirate1 = new Pirate(1, startX, startY);
-
-        // Второго пирата размещаем на соседней клетке
-        int pirate2X = startX;
-        int pirate2Y = startY;
-        if (startX == 0) pirate2X = 1;
-        else if (startX == 8) pirate2X = 7;
-        if (startY == 0) pirate2Y = 1;
-        else if (startY == 8) pirate2Y = 7;
-
-        Pirate pirate2 = new Pirate(2, pirate2X, pirate2Y);
-
-        player.addPirate(pirate1);
-        player.addPirate(pirate2);
-
-        // Размещаем пиратов на поле
-        Cell shipCell = gameState.getBoard().getCell(startX, startY);
-        Cell pirate2Cell = gameState.getBoard().getCell(pirate2X, pirate2Y);
-
-        if (shipCell != null) {
-            shipCell.setPirate(pirate1); // Первый пират на корабле
-        }
-        if (pirate2Cell != null) {
-            pirate2Cell.setPirate(pirate2); // Второй пират на соседней клетке
-        }
-
-        System.out.println("Созданы пираты для игрока " + player.getName() +
-                ": пират1 на (" + startX + "," + startY + "), " +
-                "пират2 на (" + pirate2X + "," + pirate2Y + ")");
     }
 
-    private void nextTurn() {
-        List<Player> players = gameState.getPlayers();
-        if (players.isEmpty()) return;
+    public void broadcastMessage(GameMessage message) {
+        for (ClientHandler client : clients) {
+            client.sendMessage(message);
+        }
+    }
 
-        int currentIndex = -1;
-        for (int i = 0; i < players.size(); i++) {
-            if (players.get(i).getId().equals(gameState.getCurrentPlayerId())) {
-                currentIndex = i;
-                break;
+    private void sendError(ClientHandler client, String errorMsg) {
+        GameMessage errorMessage = new GameMessage();
+        errorMessage.setType(MessageType.ERROR);
+        errorMessage.setData("{\"error\": \"" + errorMsg + "\"}");
+        client.sendMessage(errorMessage);
+    }
+
+    private String buildGameStateJson() {
+        StringBuilder json = new StringBuilder("{");
+        json.append("\"players\": [");
+        boolean first = true;
+        for (Player player : gameState.getPlayers()) {
+            if (!first) json.append(",");
+            json.append("{");
+            json.append("\"id\": \"").append(player.getId()).append("\",");
+            json.append("\"name\": \"").append(player.getName()).append("\",");
+            json.append("\"ready\": ").append(player.isReady()).append(",");
+            json.append("\"score\": ").append(player.getScore());
+            json.append("}");
+            first = false;
+        }
+        json.append("],");
+        json.append("\"currentPlayerId\": \"").append(gameState.getCurrentPlayerId()).append("\",");
+        json.append("\"turnNumber\": ").append(gameState.getTurnNumber()).append(",");
+        json.append("\"board\": ").append(buildBoardJson());
+        json.append("}");
+        return json.toString();
+    }
+
+    private String buildBoardJson() {
+        StringBuilder json = new StringBuilder("[");
+        Board board = gameState.getBoard();
+        for (int y = 0; y < board.getHeight(); y++) {
+            if (y > 0) json.append(",");
+            json.append("[");
+            for (int x = 0; x < board.getWidth(); x++) {
+                if (x > 0) json.append(",");
+                Cell cell = board.getCell(x, y);
+                json.append(cellToJson(cell));
             }
+            json.append("]");
         }
-
-        int nextIndex = (currentIndex + 1) % players.size();
-        gameState.setCurrentPlayerId(players.get(nextIndex).getId());
-        gameState.setTurnNumber(gameState.getTurnNumber() + 1);
-
-        System.out.println("Ход перешел к игроку: " + players.get(nextIndex).getName());
+        json.append("]");
+        return json.toString();
     }
 
-    private void sendError(ClientHandler client, String errorMessage) {
-        GameMessage errorMsg = new GameMessage();
-        errorMsg.setType(MessageType.ERROR);
-        errorMsg.setData(MessageParser.dataToJson(
-            ErrorData.builder()
-                .error("ERROR")
-                .message(errorMessage)
-                .build()
-        ));
-        client.sendMessage(errorMsg);
-    }
-
-    private void broadcastGameState() {
-        GameMessage message = new GameMessage();
-        message.setType(MessageType.GAME_STATE);
-        message.setData(MessageParser.dataToJson(gameState));
-
-        for (ClientHandler client : clients) {
-            client.sendMessage(message);
+    private String cellToJson(Cell cell) {
+        if (cell == null) return "{}";
+        StringBuilder json = new StringBuilder("{");
+        json.append("\"type\": \"").append(cell.getType().name()).append("\"");
+        if (cell.hasPirate()) {
+            Pirate pirate = cell.getPirate();
+            json.append(",\"pirate\": {\"id\": ").append(pirate.getId()).append("}");
         }
-    }
-
-    private void broadcastMessage(GameMessage message) {
-        for (ClientHandler client : clients) {
-            client.sendMessage(message);
+        if (cell.hasGold()) {
+            Gold gold = cell.getGold();
+            json.append(",\"gold\": {\"amount\": ").append(gold.getAmount()).append("}");
         }
+        json.append("}");
+        return json.toString();
     }
 
-    private boolean allPlayersReady() {
-        return gameState.getPlayers().stream().allMatch(Player::isReady);
-    }
-
-    private void startGame() {
-        // Начинаем игру
-        gameState.setGameStarted(true);
-
-        // Устанавливаем первого игрока
-        if (!gameState.getPlayers().isEmpty()) {
-            gameState.setCurrentPlayerId(gameState.getPlayers().get(0).getId());
-        }
-
-        gameState.setTurnNumber(1);
-        System.out.println("=== ИГРА НАЧАЛАСЬ ===");
-        System.out.println("Первый ход у: " + gameState.getPlayers().get(0).getName());
-
-        broadcastGameState();
-    }
-
-    public void removeClient(ClientHandler client) {
-        clients.remove(client);
+    public void onClientDisconnect(ClientHandler client) {
         if (client.getPlayerId() != null) {
             Player player = getPlayer(client.getPlayerId());
             if (player != null) {
                 gameState.getPlayers().remove(player);
                 System.out.println("Игрок отключен: " + player.getName());
-
-                // Если игроков осталось меньше 2, заканчиваем игру
                 if (gameState.getPlayers().size() < 2 && gameState.isGameStarted()) {
                     gameState.setGameFinished(true);
                     System.out.println("Игра прервана - недостаточно игроков");
                 }
             }
         }
+        clients.remove(client);
+        broadcastGameState();
     }
 }

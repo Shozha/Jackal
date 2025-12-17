@@ -4,7 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * LobbyScreen - экран лобби с ожиданием игроков
+ * LobbyScreen - экран лобби с ожиданием игроков и кнопкой Ready
+ * Версия [88] - показывает "(готов)"/"(не готов)" вместо галочек
  */
 public class LobbyScreen extends JPanel {
 
@@ -12,8 +13,10 @@ public class LobbyScreen extends JPanel {
     private DefaultListModel<String> playersListModel;
     private JLabel playerCountLabel;
     private JLabel statusLabel;
+    private JButton readyButton;
     private JButton startGameButton;
     private JButton exitButton;
+    private boolean isReady = false;
 
     public LobbyScreen() {
         setLayout(new BorderLayout());
@@ -22,7 +25,6 @@ public class LobbyScreen extends JPanel {
         // TOP - заголовок
         JPanel topPanel = new JPanel(new GridBagLayout());
         topPanel.setBackground(new Color(51, 51, 51));
-
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(15, 15, 15, 15);
 
@@ -71,6 +73,14 @@ public class LobbyScreen extends JPanel {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
         bottomPanel.setBackground(new Color(245, 245, 245));
 
+        readyButton = new JButton("Готов");
+        readyButton.setFont(new Font("Arial", Font.BOLD, 14));
+        readyButton.setBackground(new Color(255, 152, 0));
+        readyButton.setForeground(Color.WHITE);
+        readyButton.setFocusPainted(false);
+        readyButton.setPreferredSize(new Dimension(120, 40));
+        bottomPanel.add(readyButton);
+
         startGameButton = new JButton("Начать игру");
         startGameButton.setFont(new Font("Arial", Font.BOLD, 14));
         startGameButton.setBackground(new Color(76, 175, 80));
@@ -92,7 +102,7 @@ public class LobbyScreen extends JPanel {
     }
 
     public void addPlayer(String playerName) {
-        if (!playersListModel.contains(playerName)) {
+        if (!playersListModel.contains("• " + playerName)) {
             playersListModel.addElement("• " + playerName);
         }
     }
@@ -108,15 +118,54 @@ public class LobbyScreen extends JPanel {
         }
     }
 
-    public void setStatus(String status, boolean isReady) {
+    /**
+     * ⭐ НОВОЕ: показываем "(готов)"/"(не готов)" вместо галочек
+     */
+    public void updatePlayersWithReadyStatus(String[] players, boolean[] readyStatus) {
+        playersListModel.clear();
+        for (int i = 0; i < players.length; i++) {
+            String status = (readyStatus != null && i < readyStatus.length && readyStatus[i])
+                    ? " (готов)"
+                    : " (не готов)";
+            playersListModel.addElement("• " + players[i] + status);
+        }
+        playersListView.repaint();
+    }
+
+    /**
+     * ⭐ Явное отключение кнопки "Начать игру"
+     */
+    public void setStatus(String status, boolean allReady) {
         statusLabel.setText(status);
-        if (isReady) {
+        if (allReady) {
             statusLabel.setForeground(new Color(76, 175, 80));
             startGameButton.setEnabled(true);
         } else {
             statusLabel.setForeground(new Color(255, 152, 0));
             startGameButton.setEnabled(false);
         }
+    }
+
+    /**
+     * Обновляем статус кнопки Ready
+     */
+    public void setReadyButtonStatus(boolean ready) {
+        this.isReady = ready;
+        if (ready) {
+            readyButton.setText("Отменить");
+            readyButton.setBackground(new Color(76, 175, 80));
+        } else {
+            readyButton.setText("Готов");
+            readyButton.setBackground(new Color(255, 152, 0));
+        }
+    }
+
+    public boolean getReadyStatus() {
+        return isReady;
+    }
+
+    public void setReadyListener(java.awt.event.ActionListener listener) {
+        readyButton.addActionListener(listener);
     }
 
     public void setStartGameListener(java.awt.event.ActionListener listener) {
