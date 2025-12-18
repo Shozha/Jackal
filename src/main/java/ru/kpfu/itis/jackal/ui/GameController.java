@@ -9,11 +9,8 @@ import ru.kpfu.itis.jackal.network.NetworkClient;
 import ru.kpfu.itis.jackal.network.protocol.GameMessage;
 import ru.kpfu.itis.jackal.network.protocol.MessageType;
 import ru.kpfu.itis.jackal.server.GameServer;
-import java.awt.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class GameController {
     private AppFrame appFrame;
@@ -152,29 +149,12 @@ public class GameController {
 
     private void showGame() {
         gameScreen = new GameScreen();
-        initializePirateColors();  // ✅ Инициализируем цвета пиратов
         appFrame.setContent(gameScreen);
         gameScreen.setEndTurnListener(e -> handleEndTurn());
         gameScreen.setExitListener(e -> handleExit());
         gameScreen.setCellClickListener((x, y) -> handleCellClick((Integer) x, (Integer) y));
         gameScreen.addLog("[ИГРА] Игра началась!");
         gameScreen.addLog("[РАУНД] Раунд 1 начинается...");
-    }
-
-    // ✅ НОВЫЙ МЕТОД: Инициализация цветов пиратов
-    private void initializePirateColors() {
-        if (gameScreen == null) return;
-        
-        Map<Integer, Color> pirateColors = new HashMap<>();
-        pirateColors.put(1, new Color(220, 50, 50));    // Красный - Пират 1
-        pirateColors.put(2, new Color(50, 150, 220));   // Синий - Пират 2
-        pirateColors.put(3, new Color(50, 220, 50));    // Зеленый - Пират 3
-        
-        gameScreen.setPirateColors(pirateColors);
-        System.out.println("[GameController] ✅ Цвета пиратов инициализированы:");
-        System.out.println("  Пират 1 (ID=1): Красный");
-        System.out.println("  Пират 2 (ID=2): Синий");
-        System.out.println("  Пират 3 (ID=3): Зеленый");
     }
 
     private void handleCellClick(Integer x, Integer y) {
@@ -428,13 +408,11 @@ public class GameController {
                         if (cell != null && cell.has("pirate")) {
                             JsonObject pirateObj = cell.getAsJsonObject("pirate");
                             if (pirateObj != null && pirateObj.has("id")) {
-                                // ✅ Исправлено: получаем как String
-                                String idStr = pirateObj.get("id").getAsString();
-                                int id = Integer.parseInt(idStr);
+                                int id = pirateObj.get("id").getAsInt();
                                 if (id == pirateId) {
                                     pirateX = x;
                                     pirateY = y;
-                                    System.out.println("[GameController] 🎯 Пират " + id + " найден на (" + x + "," + y + ")");
+                                    System.out.println("[GameController] Пират найден на (" + x + "," + y + ")");
                                 }
                             }
                         }
@@ -459,7 +437,6 @@ public class GameController {
         return moves;
     }
 
-    // ✅ ИСПРАВЛЕНО: Правильная парсинга JSON для пиратов
     private String formatCell(JsonElement cellElem) {
         if (cellElem == null || cellElem.isJsonNull()) return " ";
 
@@ -468,12 +445,8 @@ public class GameController {
 
             if (cell.has("pirate") && !cell.get("pirate").isJsonNull()) {
                 JsonObject pirate = cell.getAsJsonObject("pirate");
-                if (pirate.has("id")) {
-                    // ✅ Получаем как String, потому что в JSON он отправляется как String
-                    String pirateIdStr = pirate.get("id").getAsString();
-                    System.out.println("[GameController] 🎭 Найден пират: P" + pirateIdStr);
-                    return "P" + pirateIdStr;
-                }
+                int pirateId = pirate.get("id").getAsInt();
+                return "P" + pirateId;
             }
 
             if (cell.has("gold")) {
@@ -484,8 +457,6 @@ public class GameController {
             return cell.has("type") ? cell.get("type").getAsString() : "SEA";
 
         } catch (Exception e) {
-            System.err.println("[GameController] ❌ Ошибка formatCell: " + e.getMessage());
-            e.printStackTrace();
             return " ";
         }
     }
