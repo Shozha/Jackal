@@ -1,21 +1,17 @@
 package ru.kpfu.itis.jackal.ui.screens;
 
 import lombok.Setter;
+import ru.kpfu.itis.jackal.ui.components.PlayerCard;
+import ru.kpfu.itis.jackal.ui.theme.GameTheme;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
+import java.util.function.BiConsumer;
 
-/**
- * GameScreen - основной игровой экран с доской 9x9
- * ✅ Версия [99] - МОРЕ ВИДНО + КОРАБЛИ С ПИРАТАМИ
- *
- * ✅ Море (SEA) теперь видно как синие клетки
- * ✅ Добавлены корабли игроков на краях доски
- * ✅ В кораблях стоят пираты игрока
- * ✅ Можно двигать корабль целиком (со всеми пиратами)
- */
 public class GameScreen extends JPanel {
 
     private static final int BOARD_SIZE = 9;
@@ -25,79 +21,78 @@ public class GameScreen extends JPanel {
     private JLabel roundLabel;
     private JLabel gameStatusLabel;
     private JLabel actionStatusLabel;
-    private JList<String> playersInfoListView;
-    private DefaultListModel<String> playersInfoModel;
+
+    private PlayerCard[] playerCards;
+    private JPanel playersPanel;
+
     private JButton selectPirateButton;
     private JButton endTurnButton;
     private JButton exitButton;
-    private BoardPanel boardPanel;
 
-    private java.util.function.BiConsumer<Integer, Integer> onCellClicked;
+    private BoardPanel boardPanel;
+    private BiConsumer onCellClicked;
     private Runnable onEndTurn;
+
     private Integer selectedPirateId = null;
-    private Set<String> possibleMoves = new HashSet<>();
+    private Set possibleMoves = new HashSet<>();
+    private Map pirateColors = new HashMap<>();
 
     public GameScreen() {
         setLayout(new BorderLayout());
-        setBackground(new Color(245, 245, 245));
+        GameTheme.applyDarkTheme(this);
 
-        // TOP - информация о раунде и игроке
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 15));
-        topPanel.setBackground(new Color(51, 51, 51));
+        topPanel.setBackground(GameTheme.BACKGROUND_SECONDARY);
+        topPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, GameTheme.BORDER_BRIGHT));
 
-        currentPlayerLabel = new JLabel("Ход: --");
-        currentPlayerLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        currentPlayerLabel.setForeground(Color.WHITE);
+        currentPlayerLabel = GameTheme.createAccentLabel("Ход: --", GameTheme.FONT_HEADING_2);
         topPanel.add(currentPlayerLabel);
 
-        roundLabel = new JLabel("Раунд: 0");
-        roundLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        roundLabel.setForeground(Color.WHITE);
+        JSeparator sep1 = GameTheme.createVerticalSeparator();
+        sep1.setPreferredSize(new Dimension(2, 20));
+        topPanel.add(sep1);
+
+        roundLabel = GameTheme.createLabel("Раунд: 0", GameTheme.FONT_HEADING_2, GameTheme.ACCENT_GOLD);
         topPanel.add(roundLabel);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // CENTER - доска слева, информация справа
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        GameTheme.applyDarkTheme(centerPanel);
 
-        // Левая часть - ДОСКА
         JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setBorder(BorderFactory.createLineBorder(new Color(153, 153, 153)));
+        leftPanel.setBorder(BorderFactory.createLineBorder(GameTheme.BORDER_BRIGHT, 3));
+        GameTheme.applyDarkTheme(leftPanel);
 
-        JLabel boardLabel = new JLabel("Игровая доска 9x9");
-        boardLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        boardLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        JLabel boardLabel = GameTheme.createAccentLabel("Остров Сокровищ 9x9", GameTheme.FONT_HEADING_3);
+        boardLabel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         leftPanel.add(boardLabel, BorderLayout.NORTH);
 
         boardPanel = new BoardPanel();
-        JScrollPane boardScroll = new JScrollPane(boardPanel);
-        boardScroll.setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
-        leftPanel.add(boardScroll, BorderLayout.CENTER);
+        leftPanel.add(boardPanel, BorderLayout.CENTER);
 
         centerPanel.add(leftPanel, BorderLayout.CENTER);
 
-        // Правая часть - ИНФОРМАЦИЯ
         JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setBorder(BorderFactory.createLineBorder(new Color(153, 153, 153)));
-        rightPanel.setPreferredSize(new Dimension(250, 500));
+        rightPanel.setPreferredSize(new Dimension(320, 500));
         rightPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        GameTheme.applyDarkTheme(rightPanel);
 
-        JLabel playersLabel = new JLabel("Игроки и золото:");
-        playersLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        JLabel playersLabel = GameTheme.createLabel("Игроки и золото:", GameTheme.FONT_HEADING_3, GameTheme.ACCENT_GOLD);
+        playersLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         rightPanel.add(playersLabel, BorderLayout.NORTH);
 
-        playersInfoModel = new DefaultListModel<>();
-        playersInfoListView = new JList<>(playersInfoModel);
-        playersInfoListView.setFont(new Font("Arial", Font.PLAIN, 11));
-        playersInfoListView.setBackground(Color.WHITE);
+        playersPanel = new JPanel();
+        playersPanel.setLayout(new BoxLayout(playersPanel, BoxLayout.Y_AXIS));
+        GameTheme.applyDarkTheme(playersPanel);
 
-        JScrollPane playersScroll = new JScrollPane(playersInfoListView);
+        JScrollPane playersScroll = new JScrollPane(playersPanel);
+        playersScroll.getViewport().setBackground(GameTheme.BACKGROUND_TERTIARY);
+        playersScroll.setBorder(BorderFactory.createLineBorder(GameTheme.BORDER_LIGHT, 1));
         rightPanel.add(playersScroll, BorderLayout.CENTER);
 
-        gameStatusLabel = new JLabel("Статус: инициализация...");
-        gameStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-        gameStatusLabel.setForeground(new Color(102, 102, 102));
+        gameStatusLabel = GameTheme.createLabel("Инициализация...", GameTheme.FONT_SMALL, GameTheme.TEXT_SECONDARY);
         gameStatusLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
         rightPanel.add(gameStatusLabel, BorderLayout.SOUTH);
 
@@ -105,87 +100,58 @@ public class GameScreen extends JPanel {
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // BOTTOM - кнопки управления
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
-        bottomPanel.setBackground(new Color(245, 245, 245));
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
+        bottomPanel.setBackground(GameTheme.BACKGROUND_SECONDARY);
+        bottomPanel.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, GameTheme.BORDER_BRIGHT));
 
-        selectPirateButton = new JButton("Выбрать пирата");
-        selectPirateButton.setFont(new Font("Arial", Font.BOLD, 12));
-        selectPirateButton.setBackground(new Color(76, 175, 80));
-        selectPirateButton.setForeground(Color.WHITE);
-        selectPirateButton.setFocusPainted(false);
+        selectPirateButton = GameTheme.createButton("Выбрать пирата", GameTheme.ACCENT_SUCCESS);
         selectPirateButton.setEnabled(false);
-        selectPirateButton.setPreferredSize(new Dimension(150, 35));
         selectPirateButton.addActionListener(e -> showPirateSelection());
         bottomPanel.add(selectPirateButton);
 
-        endTurnButton = new JButton("Ход завершен");
-        endTurnButton.setFont(new Font("Arial", Font.BOLD, 12));
-        endTurnButton.setBackground(new Color(33, 150, 243));
-        endTurnButton.setForeground(Color.WHITE);
-        endTurnButton.setFocusPainted(false);
+        endTurnButton = GameTheme.createButton("Ход завершен", GameTheme.ACCENT_PRIMARY);
         endTurnButton.setEnabled(false);
-        endTurnButton.setPreferredSize(new Dimension(150, 35));
         bottomPanel.add(endTurnButton);
 
-        actionStatusLabel = new JLabel("Готов к ходу");
-        actionStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-        actionStatusLabel.setForeground(new Color(102, 102, 102));
+        actionStatusLabel = GameTheme.createLabel("Готов к ходу", GameTheme.FONT_BODY, GameTheme.ACCENT_SUCCESS);
         bottomPanel.add(actionStatusLabel);
 
-        exitButton = new JButton("Выход");
-        exitButton.setFont(new Font("Arial", Font.BOLD, 12));
-        exitButton.setBackground(new Color(244, 67, 54));
-        exitButton.setForeground(Color.WHITE);
-        exitButton.setFocusPainted(false);
-        exitButton.setPreferredSize(new Dimension(100, 35));
+        exitButton = GameTheme.createButton("Выход", GameTheme.ACCENT_DANGER);
         bottomPanel.add(exitButton);
 
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Слушатели для доски
         endTurnButton.addActionListener(e -> {
             if (onEndTurn != null) {
                 onEndTurn.run();
             }
         });
-    }
 
-    private void showPirateSelection() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Выбрать пирата", true);
-        dialog.setSize(300, 200);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(new GridLayout(3, 1, 10, 10));
-        dialog.getContentPane().setBackground(Color.WHITE);
-
-        for (int i = 1; i <= 3; i++) {
-            final int pirateId = i;
-            JButton pirateBtn = new JButton("Пират #" + i);
-            pirateBtn.setFont(new Font("Arial", Font.BOLD, 14));
-            pirateBtn.setBackground(new Color(33, 150, 243));
-            pirateBtn.setForeground(Color.WHITE);
-            pirateBtn.setFocusPainted(false);
-            pirateBtn.addActionListener(e -> {
-                selectPirate(pirateId);
-                dialog.dispose();
-            });
-            dialog.add(pirateBtn);
+        playerCards = new PlayerCard[4];
+        for (int i = 0; i < 4; i++) {
+            PlayerCard card = new PlayerCard("Игрок " + (i + 1), 0, i, false, false);
+            playerCards[i] = card;
+            playersPanel.add(card);
+            playersPanel.add(Box.createVerticalStrut(10));
         }
-
-        dialog.setVisible(true);
     }
 
-    private void selectPirate(int pirateId) {
-        this.selectedPirateId = pirateId;
-        boardPanel.setSelectedPirateId(pirateId);
-        setActionStatus("✅ Выбран пират #" + pirateId);
-        System.out.println("[GameScreen] Выбран пират #" + pirateId);
-        showPossibleMoves(pirateId);
-        boardPanel.repaint();
+    public void updatePlayerInfo(int playerIndex, String playerName, int gold, boolean isReady, boolean isCurrentTurn) {
+        if (playerIndex >= 0 && playerIndex < playerCards.length) {
+            playerCards[playerIndex].updatePlayerInfo(playerName, gold, isReady, isCurrentTurn);
+        }
     }
 
-    private void showPossibleMoves(int pirateId) {
-        possibleMoves.clear();
+    public void updateAllPlayersInfo(String[] playerInfos) {
+        for (int i = 0; i < Math.min(playerInfos.length, playerCards.length); i++) {
+            String info = playerInfos[i];
+            playerCards[i].updatePlayerInfo(
+                    "Игрок " + (i + 1),
+                    100,
+                    true,
+                    false
+            );
+        }
     }
 
     public void updateBoard(String[][] board) {
@@ -193,7 +159,13 @@ public class GameScreen extends JPanel {
         boardPanel.repaint();
     }
 
-    public void updatePossibleMoves(List<String> moves) {
+    public void setPirateColors(Map colors) {
+        this.pirateColors.clear();
+        this.pirateColors.putAll(colors);
+        boardPanel.setPirateColors(colors);
+    }
+
+    public void updatePossibleMoves(List moves) {
         possibleMoves.clear();
         possibleMoves.addAll(moves);
         boardPanel.setPossibleMoves(possibleMoves);
@@ -202,12 +174,9 @@ public class GameScreen extends JPanel {
     public void setCurrentPlayer(String playerName, int round) {
         currentPlayerLabel.setText("Ход: " + playerName);
         roundLabel.setText("Раунд: " + round);
-    }
 
-    public void updatePlayersInfo(String[] playerInfos) {
-        playersInfoModel.clear();
-        for (String info : playerInfos) {
-            playersInfoModel.addElement(info);
+        for (PlayerCard playerCard : playerCards) {
+            playerCard.setCurrentTurn(false);
         }
     }
 
@@ -217,19 +186,19 @@ public class GameScreen extends JPanel {
 
     public void setGameStatus(String status, boolean isOurTurn) {
         gameStatusLabel.setText(status);
-
         selectedPirateId = null;
         possibleMoves.clear();
         boardPanel.setSelectedPirateId(null);
         boardPanel.setPossibleMoves(possibleMoves);
 
         if (isOurTurn) {
-            gameStatusLabel.setForeground(new Color(76, 175, 80));
+            gameStatusLabel.setForeground(GameTheme.ACCENT_SUCCESS);
             selectPirateButton.setEnabled(true);
         } else {
-            gameStatusLabel.setForeground(new Color(255, 152, 0));
+            gameStatusLabel.setForeground(GameTheme.ACCENT_WARNING);
             selectPirateButton.setEnabled(false);
         }
+
         endTurnButton.setEnabled(isOurTurn);
         boardPanel.repaint();
     }
@@ -238,17 +207,55 @@ public class GameScreen extends JPanel {
         actionStatusLabel.setText(status);
     }
 
-    public void setEndTurnListener(java.awt.event.ActionListener listener) {
+    public void setEndTurnListener(ActionListener listener) {
         endTurnButton.addActionListener(listener);
     }
 
-    public void setExitListener(java.awt.event.ActionListener listener) {
+    public void setExitListener(ActionListener listener) {
         exitButton.addActionListener(listener);
     }
 
-    public void setCellClickListener(java.util.function.BiConsumer<Integer, Integer> listener) {
+    public void setCellClickListener(BiConsumer listener) {
         this.onCellClicked = listener;
         boardPanel.setCellClickListener(listener);
+    }
+
+    private void showPirateSelection() {
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "Выбрать пирата",
+                true
+        );
+        dialog.setSize(320, 220);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new GridLayout(3, 1, 15, 15));
+
+        JPanel contentPane = (JPanel) dialog.getContentPane();
+        GameTheme.applyDarkTheme(contentPane);
+        contentPane.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        for (int i = 1; i <= 3; i++) {
+            final int pirateId = i;
+            JButton pirateBtn = GameTheme.createButtonLarge(
+                    "Пират #" + i,
+                    GameTheme.ACCENT_PRIMARY
+            );
+            pirateBtn.addActionListener(e -> {
+                selectPirate(pirateId);
+                dialog.dispose();
+            });
+            contentPane.add(pirateBtn);
+        }
+
+        dialog.setVisible(true);
+    }
+
+    private void selectPirate(int pirateId) {
+        this.selectedPirateId = pirateId;
+        boardPanel.setSelectedPirateId(pirateId);
+        setActionStatus("Выбран пират #" + pirateId);
+        System.out.println("[GameScreen] Выбран пират #" + pirateId);
+        boardPanel.repaint();
     }
 
     public static class BoardPanel extends JPanel {
@@ -257,16 +264,18 @@ public class GameScreen extends JPanel {
         private int selectedRow = -1;
         private int selectedCol = -1;
         private Integer selectedPirateId = null;
-        private Set<String> possibleMoves = new HashSet<>();
+        private Set possibleMoves = new HashSet<>();
+        private Map pirateColors = new HashMap<>();
 
         @Setter
-        private java.util.function.BiConsumer<Integer, Integer> cellClickListener;
+        private BiConsumer cellClickListener;
 
         public BoardPanel() {
             this.board = new String[BOARD_SIZE][BOARD_SIZE];
             initializeBoard();
             setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
-            setBackground(Color.WHITE);
+            GameTheme.applyDarkTheme(this);
+            setMinimumSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
 
             addMouseListener(new MouseAdapter() {
                 @Override
@@ -338,8 +347,13 @@ public class GameScreen extends JPanel {
             repaint();
         }
 
-        public void setPossibleMoves(Set<String> moves) {
+        public void setPossibleMoves(Set moves) {
             this.possibleMoves = new HashSet<>(moves);
+        }
+
+        public void setPirateColors(Map colors) {
+            this.pirateColors.clear();
+            this.pirateColors.putAll(colors);
         }
 
         @Override
@@ -352,85 +366,163 @@ public class GameScreen extends JPanel {
                 for (int x = 0; x < BOARD_SIZE; x++) {
                     int px = x * CELL_SIZE;
                     int py = y * CELL_SIZE;
-
-                    g2d.setColor(getCellColor(board[y][x]));
-                    g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    drawCellWithStyle(g2d, px, py, board[y][x]);
 
                     String moveKey = x + "," + y;
                     if (possibleMoves.contains(moveKey)) {
-                        g2d.setColor(new Color(173, 216, 230, 150));
+                        g2d.setColor(new Color(100, 200, 255, 80));
                         g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                     }
 
-                    g2d.setColor(new Color(153, 153, 153));
-                    g2d.setStroke(new BasicStroke(1));
-                    g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
-
                     if (x == selectedCol && y == selectedRow) {
-                        g2d.setColor(new Color(255, 0, 0, 120));
+                        g2d.setColor(new Color(255, 100, 100));
                         g2d.setStroke(new BasicStroke(3));
                         g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
                     }
 
                     String cell = board[y][x];
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
-                        try {
-                            int pirateId = Integer.parseInt(cell.substring(1));
-                            g2d.setColor(new Color(244, 67, 54));
-                            g2d.fillOval(px + 10, py + 10, 40, 40);
-                            g2d.setColor(Color.WHITE);
-                            g2d.setFont(new Font("Arial", Font.BOLD, 14));
-                            g2d.drawString(String.valueOf(pirateId), px + CELL_SIZE / 2 - 5, py + CELL_SIZE / 2 + 6);
-
-                            if (selectedPirateId != null && pirateId == selectedPirateId) {
-                                g2d.setColor(Color.YELLOW);
-                                g2d.setStroke(new BasicStroke(3));
-                                g2d.drawOval(px + 8, py + 8, 44, 44);
-                            }
-                        } catch (NumberFormatException ex) {
-                            // Skip
-                        }
-                    }
-                    else if (cell != null && Character.isDigit(cell.charAt(0))) {
-                        g2d.setColor(new Color(255, 193, 7));
-                        g2d.fillRect(px + 15, py + 15, 30, 30);
-                        g2d.setColor(new Color(255, 152, 0));
-                        g2d.drawRect(px + 15, py + 15, 30, 30);
-                        g2d.setColor(Color.BLACK);
-                        g2d.setFont(new Font("Arial", Font.BOLD, 10));
-                        g2d.drawString(cell, px + CELL_SIZE / 2 - 3, py + CELL_SIZE / 2 + 4);
+                        drawPirate(g2d, px, py, cell);
+                    } else if (cell != null && Character.isDigit(cell.charAt(0))) {
+                        drawGold(g2d, px, py, cell);
                     }
                 }
             }
         }
 
+        private void drawCellWithStyle(Graphics2D g2d, int px, int py, String cellType) {
+            Color baseColor = getCellColor(cellType);
+            GradientPaint gradient = new GradientPaint(
+                    px, py, baseColor.brighter(),
+                    px, py + CELL_SIZE, baseColor.darker()
+            );
+            g2d.setPaint(gradient);
+            g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+
+            drawPattern(g2d, px, py, cellType);
+
+            g2d.setColor(new Color(0, 0, 0, 40));
+            g2d.fillRect(px + CELL_SIZE - 3, py + 3, 3, CELL_SIZE);
+            g2d.fillRect(px + 3, py + CELL_SIZE - 3, CELL_SIZE - 3, 3);
+
+            g2d.setColor(new Color(100, 100, 120, 150));
+            g2d.setStroke(new BasicStroke(1));
+            g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
+        }
+
+        private void drawPattern(Graphics2D g2d, int px, int py, String cellType) {
+            if (cellType == null || cellType.equals(" ")) return;
+
+            g2d.setColor(new Color(255, 255, 255, 15));
+            switch (cellType) {
+                case "FOREST":
+                    for (int i = 0; i < CELL_SIZE; i += 8) {
+                        g2d.drawLine(px + i, py, px + i, py + CELL_SIZE);
+                    }
+                    for (int i = 4; i < CELL_SIZE; i += 8) {
+                        g2d.drawLine(px + i, py, px + i, py + CELL_SIZE);
+                    }
+                    break;
+                case "MOUNTAIN":
+                    for (int i = -CELL_SIZE; i < CELL_SIZE * 2; i += 8) {
+                        g2d.drawLine(px + i, py, px + i + CELL_SIZE, py + CELL_SIZE);
+                    }
+                    break;
+                case "SEA":
+                    for (int i = 0; i < CELL_SIZE + CELL_SIZE; i += 6) {
+                        g2d.drawLine(px + i, py, px + i - CELL_SIZE, py + CELL_SIZE);
+                        g2d.drawLine(px + i + 3, py, px + i + 3 - CELL_SIZE, py + CELL_SIZE);
+                    }
+                    break;
+                case "PLAIN":
+                    for (int i = 10; i < CELL_SIZE; i += 12) {
+                        for (int j = 10; j < CELL_SIZE; j += 12) {
+                            g2d.fillOval(px + i, py + j, 2, 2);
+                        }
+                    }
+                    break;
+                case "BEACH":
+                    for (int i = 5; i < CELL_SIZE; i += 10) {
+                        for (int j = 5; j < CELL_SIZE; j += 10) {
+                            g2d.fillRect(px + i, py + j, 3, 3);
+                        }
+                    }
+                    break;
+                case "HIDDEN":
+                    g2d.drawLine(px, py, px + CELL_SIZE, py + CELL_SIZE);
+                    g2d.drawLine(px + CELL_SIZE, py, px, py + CELL_SIZE);
+                    break;
+            }
+        }
+
+        private void drawPirate(Graphics2D g2d, int px, int py, String cell) {
+            try {
+                int pirateId = Integer.parseInt(cell.substring(1));
+                Color pirateColor = (Color) pirateColors.getOrDefault(pirateId, new Color(220, 50, 50));
+
+                g2d.setColor(pirateColor);
+                g2d.fillOval(px + 10, py + 10, 40, 40);
+
+                if (selectedPirateId != null && pirateId == selectedPirateId) {
+                    g2d.setColor(new Color(255, 255, 100));
+                    g2d.setStroke(new BasicStroke(3));
+                    g2d.drawOval(px + 8, py + 8, 44, 44);
+                    g2d.setColor(new Color(255, 200, 0, 80));
+                    g2d.fillOval(px + 12, py + 12, 36, 36);
+                }
+
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font("Arial", Font.BOLD, 18));
+                FontMetrics fm = g2d.getFontMetrics();
+                String text = String.valueOf(pirateId);
+                int textX = px + CELL_SIZE / 2 - fm.stringWidth(text) / 2;
+                int textY = py + CELL_SIZE / 2 + fm.getAscent() / 2 - 2;
+                g2d.drawString(text, textX, textY);
+
+            } catch (NumberFormatException ex) {
+                // Skip
+            }
+        }
+
+        private void drawGold(Graphics2D g2d, int px, int py, String amount) {
+            GradientPaint goldGradient = new GradientPaint(
+                    px + 15, py + 15, new Color(255, 235, 59),
+                    px + 45, py + 45, new Color(255, 193, 7)
+            );
+            g2d.setPaint(goldGradient);
+            g2d.fillRect(px + 15, py + 15, 30, 30);
+
+            g2d.setColor(new Color(255, 152, 0));
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRect(px + 15, py + 15, 30, 30);
+
+            g2d.setColor(new Color(0, 0, 0, 30));
+            g2d.fillRect(px + 17, py + 42, 26, 3);
+
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.BOLD, 11));
+            FontMetrics fm = g2d.getFontMetrics();
+            int textX = px + CELL_SIZE / 2 - fm.stringWidth(amount) / 2;
+            int textY = py + CELL_SIZE / 2 + fm.getAscent() / 2;
+            g2d.drawString(amount, textX, textY);
+        }
+
         private Color getCellColor(String cell) {
-            if (cell == null || cell.equals(" ")) return Color.DARK_GRAY;
+            if (cell == null || cell.equals(" ")) {
+                return new Color(200, 180, 150);
+            }
 
             return switch (cell) {
-                // ✅ ВСЕГДА ВИДНО С НАЧАЛА:
-                case "SEA" -> new Color(33, 150, 243);              // синее море
-
-                // ✅ ПЛЯЖ - ОДИН ЦВЕТ ДЛЯ ВСЕХ (песочный, чтобы не раскрывать стратегию)
-                case "BEACH" -> new Color(210, 180, 140);           // песочный
-                case "BEACH_RED" -> new Color(210, 180, 140);       // один цвет
-                case "BEACH_BLUE" -> new Color(210, 180, 140);      // один цвет
-                case "BEACH_GREEN" -> new Color(210, 180, 140);     // один цвет
-                case "BEACH_YELLOW" -> new Color(210, 180, 140);    // один цвет
-
-                case "SHIP" -> new Color(121, 85, 72);              // коричневый корабль
-
-                // ✅ ВИДНО КОГДА ОТКРОЕТСЯ:
-                case "PLAIN" -> new Color(139, 195, 74);            // равнина
-                case "FOREST" -> new Color(56, 142, 60);            // лес
-                case "MOUNTAIN" -> new Color(117, 117, 117);        // гора
-                case "FORT" -> new Color(255, 152, 0);              // форт
-                case "LAND" -> new Color(139, 195, 74);
-
-                // ✅ СКРЫТО:
-                case "HIDDEN" -> Color.DARK_GRAY;                   // невидимо
-
-                default -> Color.DARK_GRAY;
+                case "SEA" -> new Color(30, 140, 200);
+                case "BEACH" -> new Color(220, 200, 120);
+                case "SHIP" -> new Color(140, 100, 60);
+                case "PLAIN" -> new Color(120, 180, 70);
+                case "FOREST" -> new Color(40, 130, 50);
+                case "MOUNTAIN" -> new Color(120, 120, 130);
+                case "FORT" -> new Color(230, 140, 30);
+                case "LAND" -> new Color(150, 180, 100);
+                case "HIDDEN" -> new Color(180, 160, 140);
+                default -> new Color(180, 180, 180);
             };
         }
     }

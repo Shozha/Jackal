@@ -6,10 +6,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Ship {
-    private String playerId; // Владелец корабля
-    private int x; // Позиция на поле
+    private String playerId;
+    private int x;
     private int y;
-    private int storedGold; // Накопленное золото
+    private int storedGold;
 
     public Ship() {
         this.storedGold = 0;

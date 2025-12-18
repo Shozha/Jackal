@@ -7,17 +7,10 @@ import lombok.Setter;
 import ru.kpfu.itis.jackal.game.GameEngine;
 import ru.kpfu.itis.jackal.network.protocol.GameMessage;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-/**
- * ClientHandler - обработчик клиента на сервере
- * ✅ Версия [FIXED] - ВЕЗДЕ GSON!
- */
 public class ClientHandler implements Runnable {
 
     private Socket clientSocket;
@@ -37,24 +30,17 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            // ✅ ИСПРАВЛЕНО: Правильное создание потоков с UTF-8
-            out = new PrintWriter(
-                    new java.io.OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8),
-                    true
-            );
-
-            in = new BufferedReader(
-                    new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8)
-            );
+            out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8),
+                    true);
+            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
                 try {
-                    // ✅ ИСПРАВЛЕНО: Везде Gson!
                     GameMessage message = gson.fromJson(inputLine, GameMessage.class);
                     gameEngine.processMessage(message, this);
                 } catch (Exception e) {
-                    System.err.println("[ClientHandler] ❌ Ошибка парсинга: " + e.getMessage());
+                    System.err.println("[ClientHandler] Ошибка парсинга: " + e.getMessage());
                 }
             }
 
@@ -73,7 +59,6 @@ public class ClientHandler implements Runnable {
     }
 
     public void sendMessage(GameMessage message) {
-        // ✅ ИСПРАВЛЕНО: Везде Gson!
         String json = gson.toJson(message);
         out.println(json);
         out.flush();

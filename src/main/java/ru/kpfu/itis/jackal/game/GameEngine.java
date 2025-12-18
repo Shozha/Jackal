@@ -9,28 +9,16 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.*;
 
-/**
- * GameEngine - ФАЗА 4
- * ✅ Версия [FIXED-v2] - ВЕЗДЕ GSON, ВСЕ СТРЕЛКИ
- *
- * ИСПРАВЛЕНИЯ:
- * ✅ Jackson → Gson везде
- * ✅ 2 пирата вместо 3
- * ✅ Пираты стартуют на пляже (не 0,0)
- * ✅ buildGameStateJson() - ПОЛНАЯ реализация
- * ✅ UUID для playerId
- * ✅ ARROW_LEFT и ARROW_RIGHT добавлены в генерацию
- */
 public class GameEngine {
 
     private static final String MOVE = "MOVE";
-    private static final String ENDTURN = "ENDTURN";
+    private static final String END_TURN = "END_TURN";
     private static final Gson gson = new GsonBuilder().create();
 
     private GameState gameState;
     private List<ClientHandler> clients;
     private Random random;
-    private Map<String, String> playerBeaches; // пляж каждого игрока
+    private Map<String, String> playerBeaches;
 
     public GameEngine() {
         this.gameState = new GameState();
@@ -44,11 +32,10 @@ public class GameEngine {
         Board board = new Board(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT);
         initializeBoard(board);
         gameState.setBoard(board);
-        System.out.println("[GameEngine] ✅ Игра инициализирована с FOG OF WAR");
+        System.out.println("[GameEngine] Игра инициализирована с FOG OF WAR");
     }
 
     private void initializeBoard(Board board) {
-        // 1. Заполняем все клетки морем (ЗАКРЫТО по умолчанию)
         for (int x = 0; x < board.getWidth(); x++) {
             for (int y = 0; y < board.getHeight(); y++) {
                 Cell seaCell = new Cell(CellType.SEA, CellContent.EMPTY);
@@ -58,10 +45,9 @@ public class GameEngine {
             }
         }
 
-        // 2. Пляжи (углы доски) - ОТКРЫТЫ И ВИДНЫ С НАЧАЛА
         Cell beach00 = new Cell(CellType.BEACH, CellContent.EMPTY);
-        beach00.setRevealed(true);   // ✅ ОТКРЫТО
-        beach00.setVisible(true);    // ✅ ВИДНО
+        beach00.setRevealed(true);
+        beach00.setVisible(true);
         board.setCell(0, 0, beach00);
 
         Cell beach80 = new Cell(CellType.BEACH, CellContent.EMPTY);
@@ -79,28 +65,25 @@ public class GameEngine {
         beach88.setVisible(true);
         board.setCell(8, 8, beach88);
 
-        // 3. Остров (внутри) - ВСЁ ЗАКРЫТО (пока пираты не откроют)
         for (int x = 1; x < 8; x++) {
             for (int y = 1; y < 8; y++) {
                 if (x == 4 && y == 4) {
                     Cell fortCell = new Cell(CellType.FORT, CellContent.CANNON);
-                    fortCell.setRevealed(false);  // ✅ ЗАКРЫТО
+                    fortCell.setRevealed(false);
                     fortCell.setVisible(false);
                     board.setCell(x, y, fortCell);
                 } else {
                     CellType terrain = getRandomTerrain();
                     CellContent content = getRandomContent();
                     Cell cell = new Cell(terrain, content);
-                    cell.setRevealed(false);  // ✅ ЗАКРЫТО
+                    cell.setRevealed(false);
                     cell.setVisible(false);
                     board.setCell(x, y, cell);
                 }
             }
         }
 
-        System.out.println("[GameEngine] ✅ Доска инициализирована");
-        System.out.println("[GameEngine] ✅ Видны только: ПЛЯЖИ и МОРЕ");
-        System.out.println("[GameEngine] ✅ Остальное откроется при движении пирата");
+        System.out.println("[GameEngine] Доска инициализирована");
     }
 
     private CellType getRandomTerrain() {
@@ -110,7 +93,6 @@ public class GameEngine {
         return CellType.MOUNTAIN;
     }
 
-    // ✅ ИСПРАВЛЕНО: Добавлены ARROW_LEFT и ARROW_RIGHT
     private CellContent getRandomContent() {
         double rand = random.nextDouble();
         if (rand < 0.50) return CellContent.EMPTY;
@@ -277,7 +259,6 @@ public class GameEngine {
             return;
         }
 
-        // ✅ ИСПРАВЛЕНО: Использование Gson
         ActionData actionData = gson.fromJson(message.getData(), ActionData.class);
         boolean actionProcessed = false;
 
@@ -290,12 +271,12 @@ public class GameEngine {
                 broadcastGameState();
             }
         }
-        else if (ENDTURN.equals(actionData.getActionType())) {
-            System.out.println("[GameEngine] 🔄 ENDTURN от " + message.getPlayerId());
+        else if (END_TURN.equals(actionData.getActionType())) {
+            System.out.println("[GameEngine] END_TURN от " + message.getPlayerId());
             checkGameEnd();
             if (!gameState.isGameFinished()) {
                 nextTurn();
-                System.out.println("[GameEngine] ➡️ Переход хода на: " + gameState.getCurrentPlayerId());
+                System.out.println("[GameEngine] Переход хода на: " + gameState.getCurrentPlayerId());
             }
             broadcastGameState();
         }
@@ -309,7 +290,7 @@ public class GameEngine {
         Player player = getPlayer(message.getPlayerId());
         if (player != null) {
             player.setReady(!player.isReady());
-            System.out.println("[GameEngine] 🔘 " + player.getName() + ": " + player.isReady());
+            System.out.println("[GameEngine] " + player.getName() + ": " + player.isReady());
         }
         broadcastGameState();
     }
@@ -329,29 +310,25 @@ public class GameEngine {
         if (fromCell == null || toCell == null) return false;
 
         if (!toCell.isRevealed()) {
-            toCell.reveal();      // ← ОТКРЫТЬ
-            toCell.makeVisible(); // ← СДЕЛАТЬ ВИДИМОЙ
+            toCell.reveal();
+            toCell.makeVisible();
 
-            System.out.println("[GameEngine] 🔓 ОТКРЫТА КЛЕТКА (" + moveData.getToX() + "," + moveData.getToY() + ")");
-            System.out.println("[GameEngine]    Тип: " + toCell.getType());
+            System.out.println("[GameEngine] ОТКРЫТА КЛЕТКА (" + moveData.getToX() + "," + moveData.getToY() + ")");
+            System.out.println("[GameEngine] Тип: " + toCell.getType());
         }
 
-        // БОЙ
         if (toCell.hasPirate() && !isSameTeam(toCell.getPirate(), player)) {
             boolean combatResult = handleCombat(pirate, toCell.getPirate(), toCell, player);
             if (!combatResult) return false;
         }
 
-        // Ход
         fromCell.setPirate(null);
         toCell.setPirate(pirate);
         pirate.setX(moveData.getToX());
         pirate.setY(moveData.getToY());
-        System.out.println("[GameEngine] ✅ Пират " + pirate.getId() + " в (" + moveData.getToX() + "," + moveData.getToY() + ")");
+        System.out.println("[GameEngine] Пират " + pirate.getId() + " в (" + moveData.getToX() + "," + moveData.getToY() + ")");
 
-        // ⭐ ЭФФЕКТЫ
         handleCellEffects(toCell, pirate, player);
-
         return true;
     }
 
@@ -359,14 +336,14 @@ public class GameEngine {
         if (cell == null) return;
 
         if (cell.hasTrap()) {
-            System.out.println("[GameEngine] ⚠️ ЛОВУШКА!");
+            System.out.println("[GameEngine] ЛОВУШКА!");
             returnPirateToShip(pirate, player);
             return;
         }
 
         if (cell.hasArrow()) {
             Direction dir = cell.getArrowDirection();
-            System.out.println("[GameEngine] ↗️ СТРЕЛКА в " + dir);
+            System.out.println("[GameEngine] СТРЕЛКА в " + dir);
             pushPirate(pirate, dir, player);
             return;
         }
@@ -375,7 +352,7 @@ public class GameEngine {
             int amount = cell.getGoldAmount();
             pirate.collectGold(amount);
             cell.setGold(null);
-            System.out.println("[GameEngine] 💰 Золото: " + amount);
+            System.out.println("[GameEngine] Золото: " + amount);
         }
     }
 
@@ -398,7 +375,7 @@ public class GameEngine {
             beachCell.setPirate(pirate);
             pirate.setX(beachX);
             pirate.setY(beachY);
-            System.out.println("[GameEngine] ✅ На пляж (" + beachX + "," + beachY + ")");
+            System.out.println("[GameEngine] На пляж (" + beachX + "," + beachY + ")");
         }
     }
 
@@ -415,7 +392,7 @@ public class GameEngine {
         }
 
         if (newX < 0 || newX >= GameConfig.BOARD_WIDTH || newY < 0 || newY >= GameConfig.BOARD_HEIGHT) {
-            System.out.println("[GameEngine] ⚠️ За край!");
+            System.out.println("[GameEngine] За край!");
             return;
         }
 
@@ -443,9 +420,8 @@ public class GameEngine {
         targetCell.setPirate(pirate);
         pirate.setX(newX);
         pirate.setY(newY);
-        System.out.println("[GameEngine] ✅ Толкнут в (" + newX + "," + newY + ")");
+        System.out.println("[GameEngine] Толкнут в (" + newX + "," + newY + ")");
 
-        // ⭐ ЦЕПНАЯ РЕАКЦИЯ
         handleCellEffects(targetCell, pirate, player);
     }
 
@@ -456,16 +432,16 @@ public class GameEngine {
     }
 
     private boolean handleCombat(Pirate attacker, Pirate defender, Cell cell, Player attackerPlayer) {
-        System.out.println("[GameEngine] ⚔️ БОЙ!");
+        System.out.println("[GameEngine] БОЙ!");
         if (random.nextBoolean()) {
-            System.out.println("[GameEngine] 🏆 Победитель атакующий");
+            System.out.println("[GameEngine] Победитель атакующий");
             Player defenderPlayer = getPiratePlayer(defender);
             if (defenderPlayer != null) {
                 returnPirateToShip(defender, defenderPlayer);
             }
             return true;
         } else {
-            System.out.println("[GameEngine] 🏆 Победитель защищающийся");
+            System.out.println("[GameEngine] Победитель защищающийся");
             return false;
         }
     }
@@ -503,7 +479,7 @@ public class GameEngine {
     private void startGame() {
         gameState.setGameStarted(true);
         gameState.resetTurns();
-        if (gameState.getPlayers().size() > 0) {
+        if (!gameState.getPlayers().isEmpty()) {
             gameState.setCurrentPlayerId(gameState.getPlayers().get(0).getId());
         }
     }
@@ -513,7 +489,6 @@ public class GameEngine {
         return gameState.getPlayers().stream().allMatch(Player::isReady);
     }
 
-    // ✅ ИСПРАВЛЕНО: 2 пирата вместо 3!
     private void initializePlayerPirates(Player player) {
         for (int i = 1; i <= 3; i++) {
             Pirate pirate = new Pirate(i, 0, 0);
@@ -534,7 +509,7 @@ public class GameEngine {
                 gameState.setGameFinished(true);
                 gameState.setWinnerPlayerId(player.getId());
                 Player winner = gameState.getWinner();
-                System.out.println("[GameEngine] 🎉 ПОБЕДИТЕЛЬ: " + winner.getName() + " (" + winner.getScore() + " золота)");
+                System.out.println("[GameEngine] ПОБЕДИТЕЛЬ: " + winner.getName() + " (" + winner.getScore() + " золота)");
                 broadcastGameEnd(winner);
                 break;
             }
@@ -544,7 +519,6 @@ public class GameEngine {
     private void broadcastGameEnd(Player winner) {
         GameMessage endMessage = new GameMessage();
         endMessage.setType(MessageType.GAME_END);
-        // ✅ ИСПРАВЛЕНО: Gson!
         endMessage.setData(gson.toJson(new GameEndData(winner.getId(), winner.getName(), winner.getScore())));
 
         for (ClientHandler client : clients) {
@@ -556,13 +530,11 @@ public class GameEngine {
         try {
             JsonObject stateJson = new JsonObject();
 
-            // Текущее состояние игры
             stateJson.addProperty("gameStarted", gameState.isGameStarted());
             stateJson.addProperty("gameFinished", gameState.isGameFinished());
             stateJson.addProperty("currentPlayerId", gameState.getCurrentPlayerId());
             stateJson.addProperty("turnNumber", gameState.getTurnNumber());
 
-            // ✅ ИСПРАВЛЕНО: Сериализация Board через Cell.toJsonObject()
             JsonArray boardArray = new JsonArray();
             Board board = gameState.getBoard();
 
@@ -581,7 +553,6 @@ public class GameEngine {
             }
             stateJson.add("board", boardArray);
 
-            // Игроки и их статусы
             JsonArray playersArray = new JsonArray();
             for (Player player : gameState.getPlayers()) {
                 JsonObject playerJson = new JsonObject();
@@ -593,7 +564,6 @@ public class GameEngine {
             }
             stateJson.add("players", playersArray);
 
-            // Отправляем всем
             GameMessage stateMessage = new GameMessage();
             stateMessage.setType(MessageType.GAME_STATE);
             stateMessage.setData(gson.toJson(stateJson));
@@ -606,10 +576,10 @@ public class GameEngine {
                 }
             }
 
-            System.out.println("[GameEngine] 📬 GAME_STATE отправлено всем клиентам");
+            System.out.println("[GameEngine] GAME_STATE отправлено всем клиентам");
 
         } catch (Exception e) {
-            System.err.println("[GameEngine] ❌ Ошибка в broadcastGameState():");
+            System.err.println("[GameEngine] Ошибка в broadcastGameState():");
             e.printStackTrace();
         }
     }
@@ -627,11 +597,9 @@ public class GameEngine {
         client.sendMessage(errorMessage);
     }
 
-    // ✅ ИСПРАВЛЕНО: ПОЛНАЯ реализация buildGameStateJson()
     private String buildGameStateJson() {
         GameStateDto dto = new GameStateDto();
 
-        // Игроки
         for (Player player : gameState.getPlayers()) {
             PlayerDto playerDto = new PlayerDto();
             playerDto.id = player.getId();
@@ -695,14 +663,13 @@ public class GameEngine {
             if (player != null) {
                 gameState.getPlayers().remove(player);
                 playerBeaches.remove(player.getId());
-                System.out.println("[GameEngine] 👋 Отключен: " + player.getName());
+                System.out.println("[GameEngine] Отключен: " + player.getName());
             }
         }
         clients.remove(client);
         broadcastGameState();
     }
 
-    // ✅ DTO классы для Gson сериализации
     public static class GameStateDto {
         public List<PlayerDto> players = new ArrayList<>();
         public String currentPlayerId;

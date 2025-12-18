@@ -32,7 +32,6 @@ public class Player {
         this.teamColor = teamColor;
     }
 
-    // Вспомогательные методы
     public void addPirate(Pirate pirate) {
         pirates.add(pirate);
     }
