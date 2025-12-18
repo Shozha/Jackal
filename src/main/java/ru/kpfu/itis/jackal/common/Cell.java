@@ -1,29 +1,26 @@
 package ru.kpfu.itis.jackal.common;
 
+import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
  * Cell - клетка игровой доски
- * Версия [96] - ИСПРАВЛЕНО:
+ * ✅ Версия [98] - Gson JSON Serialization
  *
- * ✅ Добавлен FOG OF WAR (isRevealed, isVisible)
- * ✅ Содержимое отделено от типа (CellContent)
- * ✅ Правильные типы клеток (BEACH, SEA, PLAIN, FOREST, MOUNTAIN, FORT)
- * ✅ Методы для открытия и видимости
+ * ✅ Добавлена сериализация в JsonObject для Gson
+ * ✅ Методы для работы с пиратами, золотом, ловушками
+ * ✅ Поддержка FOG OF WAR (isRevealed, isVisible)
  */
 @Getter
 @Setter
 public class Cell {
-
-    private CellType type;                  // Тип клетки (тип ландшафта)
-    private CellContent content;            // Содержимое (золото, ловушка, стрелка и т.д.)
-
-    private boolean isRevealed;             // ⭐ Открыта ли клетка? (видит ли содержимое)
-    private boolean isVisible;              // Видна ли для текущего игрока? (видит ли тип)
-
-    private Gold gold;                      // Физическое золото на клетке (если content == GOLD_*)
-    private Pirate pirate;                  // Пират на клетке (может быть null)
+    private CellType type;        // Тип ландшафта
+    private CellContent content;  // Содержимое (ловушка, стрелка и т.д.)
+    private boolean isRevealed;   // ⭐ Открыта ли клетка?
+    private boolean isVisible;    // Видна ли для игрока?
+    private Gold gold;            // Золото
+    private Pirate pirate;        // Пират (если есть)
 
     // Конструкторы
     public Cell() {
@@ -37,78 +34,87 @@ public class Cell {
     public Cell(CellType type, CellContent content) {
         this.type = type;
         this.content = content;
-        this.isRevealed = false;            // ⭐ По умолчанию ЗАКРЫТА
-        this.isVisible = false;             // По умолчанию НЕ видна
+        this.isRevealed = false;
+        this.isVisible = false;
         this.gold = null;
         this.pirate = null;
     }
 
-    // ⭐ НОВЫЕ МЕТОДЫ FOG OF WAR
+    public JsonObject toJsonObject() {
+        JsonObject obj = new JsonObject();
 
-    /**
-     * Открыть клетку - теперь видно содержимое
-     */
+        // ✅ ЕСЛИ КЛЕТКА НЕ ОТКРЫТА - отправляем только "HIDDEN"
+        if (!isRevealed) {
+            obj.addProperty("type", "HIDDEN");
+            obj.addProperty("isRevealed", false);
+            obj.addProperty("isVisible", false);
+            return obj;
+        }
+
+        // ✅ ЕСЛИ ОТКРЫТА - отправляем полную информацию
+        obj.addProperty("type", type != null ? type.toString() : "SEA");
+        obj.addProperty("content", content != null ? content.toString() : "EMPTY");
+        obj.addProperty("isRevealed", isRevealed);
+        obj.addProperty("isVisible", isVisible);
+
+        if (pirate != null) {
+            JsonObject pirateObj = new JsonObject();
+            pirateObj.addProperty("id", pirate.getId());
+            pirateObj.addProperty("x", pirate.getX());
+            pirateObj.addProperty("y", pirate.getY());
+            pirateObj.addProperty("goldCarrying", pirate.getGoldCarrying());
+            obj.add("pirate", pirateObj);
+        }
+
+        if (gold != null) {
+            obj.addProperty("gold", gold.getAmount());
+        }
+
+        return obj;
+    }
+
+    // FOG OF WAR методы
     public void reveal() {
         this.isRevealed = true;
     }
 
-    /**
-     * Сделать клетку видимой для игрока
-     */
     public void makeVisible() {
         this.isVisible = true;
     }
 
-    /**
-     * Получить содержимое для отображения в UI
-     * - Если закрыта → "HIDDEN"
-     * - Если открыта → тип содержимого
-     */
     public String getDisplayContent() {
         if (!isRevealed) {
-            return "HIDDEN";  // Рубашка вниз
+            return "HIDDEN";
         }
         return content.toString();
     }
 
-    /**
-     * Может ли пират ходить по этой клетке?
-     *
-     * @param carryingGold пират несет ли золото?
-     * @return true если может ходить
-     */
+    // Проходимость
     public boolean isWalkable(boolean carryingGold) {
-        // Море НЕ проходимо пешком
+        // Море ВСЕГДА видно, но не проходимо пешком
         if (type == CellType.SEA) {
             return false;
         }
 
-        // С золотом можно ходить ТОЛЬКО по открытым плиткам!
+        // С золотом можно ходить только по открытым плиткам
         if (carryingGold && !isRevealed) {
             return false;
         }
 
-        // Остальные клетки проходимы
         return true;
     }
 
-    /**
-     * Может ли пират подобрать золото с этой клетки?
-     */
+    // Золото
     public boolean canCollectGold() {
         if (!isRevealed) {
-            return false;  // Закрытая клетка - не видно что там
+            return false;
         }
 
-        // Если содержимое это золото
         return content == CellContent.GOLD_1 ||
                 content == CellContent.GOLD_2 ||
                 content == CellContent.GOLD_3;
     }
 
-    /**
-     * Сколько золота на этой клетке?
-     */
     public int getGoldAmount() {
         return switch (content) {
             case GOLD_1 -> 1;
@@ -118,23 +124,16 @@ public class Cell {
         };
     }
 
-    /**
-     * Проверка наличия золота
-     */
     public boolean hasGold() {
         return gold != null;
     }
 
-    /**
-     * Проверка наличия пирата
-     */
+    // Пираты
     public boolean hasPirate() {
         return pirate != null;
     }
 
-    /**
-     * Есть ли ловушка на этой клетке?
-     */
+    // Стрелки и ловушки
     public boolean hasArrow() {
         return content == CellContent.ARROW_UP ||
                 content == CellContent.ARROW_DOWN ||
@@ -142,16 +141,10 @@ public class Cell {
                 content == CellContent.ARROW_RIGHT;
     }
 
-    /**
-     * Есть ли ловушка на этой клетке?
-     */
     public boolean hasTrap() {
         return content == CellContent.TRAP;
     }
 
-    /**
-     * Получить направление стрелки
-     */
     public Direction getArrowDirection() {
         return switch (content) {
             case ARROW_UP -> Direction.UP;

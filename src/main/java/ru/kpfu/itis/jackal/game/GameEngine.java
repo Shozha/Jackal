@@ -1,5 +1,7 @@
 package ru.kpfu.itis.jackal.game;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import ru.kpfu.itis.jackal.common.*;
 import ru.kpfu.itis.jackal.network.protocol.*;
 import ru.kpfu.itis.jackal.server.ClientHandler;
@@ -46,17 +48,20 @@ public class GameEngine {
     }
 
     private void initializeBoard(Board board) {
-        // 1. Заполняем все клетки морем
+        // 1. Заполняем все клетки морем (ЗАКРЫТО по умолчанию)
         for (int x = 0; x < board.getWidth(); x++) {
             for (int y = 0; y < board.getHeight(); y++) {
-                board.setCell(x, y, new Cell(CellType.SEA, CellContent.EMPTY));
+                Cell seaCell = new Cell(CellType.SEA, CellContent.EMPTY);
+                seaCell.setRevealed(true);
+                seaCell.setVisible(true);
+                board.setCell(x, y, seaCell);
             }
         }
 
-        // 2. Пляжи (углы доски) - ОТКРЫТЫ
+        // 2. Пляжи (углы доски) - ОТКРЫТЫ И ВИДНЫ С НАЧАЛА
         Cell beach00 = new Cell(CellType.BEACH, CellContent.EMPTY);
-        beach00.setRevealed(true);
-        beach00.setVisible(true);
+        beach00.setRevealed(true);   // ✅ ОТКРЫТО
+        beach00.setVisible(true);    // ✅ ВИДНО
         board.setCell(0, 0, beach00);
 
         Cell beach80 = new Cell(CellType.BEACH, CellContent.EMPTY);
@@ -74,24 +79,28 @@ public class GameEngine {
         beach88.setVisible(true);
         board.setCell(8, 8, beach88);
 
-        // 3. Форт (центр острова) - ЗАКРЫТ
-        Cell fortCell = new Cell(CellType.FORT, CellContent.CANNON);
-        fortCell.setRevealed(false);
-        fortCell.setVisible(false);
-        board.setCell(4, 4, fortCell);
-
-        // 4. Остров - ландшафт (ВСЁ ЗАКРЫТО!)
+        // 3. Остров (внутри) - ВСЁ ЗАКРЫТО (пока пираты не откроют)
         for (int x = 1; x < 8; x++) {
             for (int y = 1; y < 8; y++) {
-                if (x == 4 && y == 4) continue;
-                CellType terrain = getRandomTerrain();
-                CellContent content = getRandomContent();
-                Cell cell = new Cell(terrain, content);
-                cell.setRevealed(false);
-                cell.setVisible(false);
-                board.setCell(x, y, cell);
+                if (x == 4 && y == 4) {
+                    Cell fortCell = new Cell(CellType.FORT, CellContent.CANNON);
+                    fortCell.setRevealed(false);  // ✅ ЗАКРЫТО
+                    fortCell.setVisible(false);
+                    board.setCell(x, y, fortCell);
+                } else {
+                    CellType terrain = getRandomTerrain();
+                    CellContent content = getRandomContent();
+                    Cell cell = new Cell(terrain, content);
+                    cell.setRevealed(false);  // ✅ ЗАКРЫТО
+                    cell.setVisible(false);
+                    board.setCell(x, y, cell);
+                }
             }
         }
+
+        System.out.println("[GameEngine] ✅ Доска инициализирована");
+        System.out.println("[GameEngine] ✅ Видны только: ПЛЯЖИ и МОРЕ");
+        System.out.println("[GameEngine] ✅ Остальное откроется при движении пирата");
     }
 
     private CellType getRandomTerrain() {
@@ -319,10 +328,12 @@ public class GameEngine {
 
         if (fromCell == null || toCell == null) return false;
 
-        // Открыть клетку
         if (!toCell.isRevealed()) {
-            toCell.reveal();
-            toCell.makeVisible();
+            toCell.reveal();      // ← ОТКРЫТЬ
+            toCell.makeVisible(); // ← СДЕЛАТЬ ВИДИМОЙ
+
+            System.out.println("[GameEngine] 🔓 ОТКРЫТА КЛЕТКА (" + moveData.getToX() + "," + moveData.getToY() + ")");
+            System.out.println("[GameEngine]    Тип: " + toCell.getType());
         }
 
         // БОЙ
@@ -538,13 +549,65 @@ public class GameEngine {
         }
     }
 
-    public void broadcastGameState() {
-        GameMessage stateMessage = new GameMessage();
-        stateMessage.setType(MessageType.GAME_STATE);
-        stateMessage.setData(buildGameStateJson());
+    private void broadcastGameState() {
+        try {
+            JsonObject stateJson = new JsonObject();
 
-        for (ClientHandler client : clients) {
-            client.sendMessage(stateMessage);
+            // Текущее состояние игры
+            stateJson.addProperty("gameStarted", gameState.isGameStarted());
+            stateJson.addProperty("gameFinished", gameState.isGameFinished());
+            stateJson.addProperty("currentPlayerId", gameState.getCurrentPlayerId());
+            stateJson.addProperty("turnNumber", gameState.getTurnNumber());
+
+            // ✅ ИСПРАВЛЕНО: Сериализация Board через Cell.toJsonObject()
+            JsonArray boardArray = new JsonArray();
+            Board board = gameState.getBoard();
+
+            for (int y = 0; y < 9; y++) {
+                JsonArray rowArray = new JsonArray();
+                for (int x = 0; x < 9; x++) {
+                    Cell cell = board.getCell(x, y);
+                    if (cell != null) {
+                        rowArray.add(cell.toJsonObject());
+                    } else {
+                        // Если клетка null, создаём пустую
+                        rowArray.add(new Cell(CellType.SEA).toJsonObject());
+                    }
+                }
+                boardArray.add(rowArray);
+            }
+            stateJson.add("board", boardArray);
+
+            // Игроки и их статусы
+            JsonArray playersArray = new JsonArray();
+            for (Player player : gameState.getPlayers()) {
+                JsonObject playerJson = new JsonObject();
+                playerJson.addProperty("id", player.getId());
+                playerJson.addProperty("name", player.getName());
+                playerJson.addProperty("ready", player.isReady());
+                playerJson.addProperty("score", player.getScore());
+                playersArray.add(playerJson);
+            }
+            stateJson.add("players", playersArray);
+
+            // Отправляем всем
+            GameMessage stateMessage = new GameMessage();
+            stateMessage.setType(MessageType.GAME_STATE);
+            stateMessage.setData(gson.toJson(stateJson));
+
+            for (ClientHandler client : clients) {
+                try {
+                    client.sendMessage(stateMessage);
+                } catch (Exception e) {
+                    System.err.println("[GameEngine] Ошибка отправки GAME_STATE: " + e.getMessage());
+                }
+            }
+
+            System.out.println("[GameEngine] 📬 GAME_STATE отправлено всем клиентам");
+
+        } catch (Exception e) {
+            System.err.println("[GameEngine] ❌ Ошибка в broadcastGameState():");
+            e.printStackTrace();
         }
     }
 
