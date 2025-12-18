@@ -1,22 +1,21 @@
 package ru.kpfu.itis.jackal.network;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lombok.Getter;
 import lombok.Setter;
 import ru.kpfu.itis.jackal.network.protocol.GameMessage;
 import ru.kpfu.itis.jackal.network.protocol.MessageType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
  * NetworkClient - отвечает за подключение к серверу и обмен сообщениями
- *
- * АДАПТИРОВАН под структуру Сергея:
- * - GameMessage содержит type (enum), playerId, data (JSON), timestamp
- * - Все данные передаются в поле data как JSON строка
+ * ✅ Версия [FIXED] - ВЕЗДЕ ТОЛЬКО GSON!
  */
 public class NetworkClient {
 
@@ -26,14 +25,10 @@ public class NetworkClient {
 
     @Setter
     private Consumer<GameMessage> messageListener;
+
     private volatile boolean connected = false;
+    private static final Gson gson = new GsonBuilder().create();
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    /**
-     * -- GETTER --
-     *  Возвращает playerId текущего клиента
-     */
     @Getter
     private String playerId;
 
@@ -44,23 +39,29 @@ public class NetworkClient {
         try {
             this.socket = new Socket(host, port);
 
+            // ✅ ИСПРАВЛЕНО: Правильное создание PrintWriter с UTF-8
             this.out = new PrintWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8),
                     true
             );
+
             this.in = new BufferedReader(
                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)
             );
 
-            // Генерируем playerId (можем использовать имя как ID)
-            this.playerId = playerName;
+            // ✅ ИСПРАВЛЕНО: UUID вместо playerName!
+            this.playerId = UUID.randomUUID().toString();
             this.connected = true;
-            System.out.println("✓ Подключились к серверу: " + host + ":" + port);
 
-            // Отправляем PLAYER_JOIN сообщение
-            // Структура: {"playerName": "Яромир"}
-            String playerData = "{\"playerName\": \"" + playerName + "\"}";
-            GameMessage joinMessage = new GameMessage(MessageType.PLAYER_JOIN, playerId, playerData);
+            System.out.println("✓ Подключились к серверу: " + host + ":" + port);
+            System.out.println("✓ PlayerId: " + playerId);
+
+            // Отправляем PLAYER_JOIN сообщение (Gson!)
+            GameMessage joinMessage = new GameMessage();
+            joinMessage.setType(MessageType.PLAYER_JOIN);
+            joinMessage.setPlayerId(playerId);
+            joinMessage.setData(gson.toJson(new PlayerJoinPayload(playerName)));
+
             sendMessage(joinMessage);
 
             // Запускаем поток слушания
@@ -89,7 +90,8 @@ public class NetworkClient {
                     }
 
                     try {
-                        GameMessage message = objectMapper.readValue(jsonLine, GameMessage.class);
+                        // ✅ ИСПРАВЛЕНО: Везде Gson!
+                        GameMessage message = gson.fromJson(jsonLine, GameMessage.class);
 
                         if (messageListener != null) {
                             messageListener.accept(message);
@@ -120,10 +122,10 @@ public class NetworkClient {
         }
 
         try {
-            String json = objectMapper.writeValueAsString(message);
+            // ✅ ИСПРАВЛЕНО: Везде Gson!
+            String json = gson.toJson(message);
             out.println(json);
             out.flush();
-
             System.out.println("→ Отправлено: " + message.getType());
 
         } catch (Exception e) {
@@ -137,15 +139,10 @@ public class NetworkClient {
     public void disconnect() {
         connected = false;
         try {
-            if (out != null) {
-                out.close();
-            }
-            if (in != null) {
-                in.close();
-            }
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
+            if (out != null) out.close();
+            if (in != null) in.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+
             System.out.println("✓ Отключились от сервера");
         } catch (IOException e) {
             System.err.println("✗ Ошибка при отключении: " + e.getMessage());
@@ -159,4 +156,14 @@ public class NetworkClient {
         return connected && socket != null && !socket.isClosed();
     }
 
+    /**
+     * ✅ НОВЫЙ класс для JSON payload
+     */
+    public static class PlayerJoinPayload {
+        public String playerName;
+
+        public PlayerJoinPayload(String playerName) {
+            this.playerName = playerName;
+        }
+    }
 }
