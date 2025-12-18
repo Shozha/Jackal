@@ -32,7 +32,7 @@ public class GameScreen extends JPanel {
     private Integer selectedPirateId = null;
     private Set possibleMoves = new HashSet<>();
     private Map pirateColors = new HashMap<>();
-    private JTextArea eventLog;  // НОВОЕ: Лог событий
+    private JTextArea eventLog;
 
     public GameScreen() {
         setLayout(new BorderLayout());

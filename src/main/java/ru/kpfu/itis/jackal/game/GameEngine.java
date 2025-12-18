@@ -9,6 +9,7 @@ import ru.kpfu.itis.jackal.server.ClientHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GameEngine {
 
@@ -23,7 +24,7 @@ public class GameEngine {
 
     public GameEngine() {
         this.gameState = new GameState();
-        this.clients = new ArrayList<>();
+        this.clients = new CopyOnWriteArrayList<>();
         this.random = new Random();
         this.playerBeaches = new HashMap<>();
         initializeGame();
@@ -380,6 +381,13 @@ public class GameEngine {
         Cell currentCell = gameState.getBoard().getCell(pirate.getX(), pirate.getY());
         if (currentCell != null) currentCell.setPirate(null);
 
+        if (pirate.getGoldCarrying() > 0) {
+            player.addGoldToScore(pirate.getGoldCarrying());
+            System.out.println("[GameEngine] Игрок " + player.getName() +
+                    " получил " + pirate.getGoldCarrying() + " золота!");
+            pirate.setGoldCarrying(0);
+        }
+
         Cell beachCell = gameState.getBoard().getCell(beachX, beachY);
         if (beachCell != null) {
             beachCell.reveal();
@@ -614,16 +622,16 @@ public class GameEngine {
 
         for (Player player : gameState.getPlayers()) {
             PlayerDto playerDto = new PlayerDto();
-            playerDto.id = player.getId();
-            playerDto.name = player.getName();
-            playerDto.ready = player.isReady();
-            playerDto.score = player.getScore();
-            dto.players.add(playerDto);
+            playerDto.setId(player.getId());
+            playerDto.setName(player.getName());
+            playerDto.setReady(player.isReady());
+            playerDto.setScore(player.getScore());
+            dto.getPlayers().add(playerDto);
         }
 
-        dto.currentPlayerId = gameState.getCurrentPlayerId();
-        dto.turnNumber = gameState.getTurnNumber();
-        dto.board = buildBoardJson();
+        dto.setCurrentPlayerId(gameState.getCurrentPlayerId());
+        dto.setTurnNumber(gameState.getTurnNumber());
+        dto.setBoard(buildBoardJson());
 
         return gson.toJson(dto);
     }
@@ -648,22 +656,22 @@ public class GameEngine {
         CellDto dto = new CellDto();
 
         if (!cell.isRevealed()) {
-            dto.type = "HIDDEN";
+            dto.setType("HIDDEN");
         } else {
-            dto.type = cell.getType().name();
-            dto.content = cell.getContent().name();
+            dto.setType(cell.getType().name());
+            dto.setContent(cell.getContent().name());
         }
 
         if (cell.hasPirate()) {
             PirateDto pirateDto = new PirateDto();
-            pirateDto.id = cell.getPirate().getId();
-            dto.pirate = pirateDto;
+            pirateDto.setId(String.valueOf(cell.getPirate().getId()));
+            dto.setPirate(pirateDto);
         }
 
         if (cell.isRevealed() && cell.hasGold()) {
             GoldDto goldDto = new GoldDto();
-            goldDto.amount = cell.getGold().getAmount();
-            dto.gold = goldDto;
+            goldDto.setAmount(cell.getGold().getAmount());
+            dto.setGold(goldDto);
         }
 
         return gson.toJson(dto);

@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import ru.kpfu.itis.jackal.network.protocol.GameMessage;
 import ru.kpfu.itis.jackal.network.protocol.MessageType;
+import ru.kpfu.itis.jackal.network.protocol.PlayerJoinData;
 
 import java.io.*;
 import java.net.Socket;
@@ -40,7 +41,7 @@ public class NetworkClient {
             GameMessage joinMessage = new GameMessage();
             joinMessage.setType(MessageType.PLAYER_JOIN);
             joinMessage.setPlayerId(playerId);
-            joinMessage.setData(gson.toJson(new PlayerJoinPayload(playerName)));
+            joinMessage.setData(gson.toJson(new PlayerJoinData(playerName, "")));
             sendMessage(joinMessage);
             startListeningThread();
 
@@ -115,11 +116,4 @@ public class NetworkClient {
         return connected && socket != null && !socket.isClosed();
     }
 
-    public static class PlayerJoinPayload {
-        public String playerName;
-
-        public PlayerJoinPayload(String playerName) {
-            this.playerName = playerName;
-        }
-    }
 }
