@@ -8,7 +8,7 @@ import lombok.Setter;
 public class GameMessage {
     private MessageType type;
     private String playerId;
-    private String data; // JSON строка с данными
+    private String data;
     private long timestamp;
 
     public GameMessage() {

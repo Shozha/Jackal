@@ -24,8 +24,6 @@ public class GameState {
         this.gameFinished = false;
     }
 
-    // Вспомогательные методы
-
     public void addPlayer(Player player) {
         players.add(player);
     }
@@ -44,17 +42,11 @@ public class GameState {
         return null;
     }
 
-    /**
-     * ⭐ НОВОЕ: метод для увеличения номера хода
-     */
     public void nextTurn() {
         this.turnNumber++;
         System.out.println("[GameState] Ход #" + this.turnNumber);
     }
 
-    /**
-     * ⭐ НОВОЕ: сброс хода (нужно для начала игры)
-     */
     public void resetTurns() {
         this.turnNumber = 0;
     }

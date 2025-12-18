@@ -10,7 +10,7 @@ public class Pirate {
     private int id;
     private int x;
     private int y;
-    private int goldCarrying; // количество золота, которое несет
+    private int goldCarrying;
     private boolean alive;
 
     public Pirate() {
@@ -25,17 +25,11 @@ public class Pirate {
         this.y = startY;
     }
 
-    /**
-     * ⭐ НОВОЕ: метод для сбора золота
-     */
     public void collectGold(int amount) {
         this.goldCarrying += amount;
         System.out.println("Пират #" + id + " собрал " + amount + " золота. Всего: " + this.goldCarrying);
     }
 
-    /**
-     * ⭐ НОВОЕ: метод для сдачи золота
-     */
     public int depositGold() {
         int deposited = this.goldCarrying;
         this.goldCarrying = 0;

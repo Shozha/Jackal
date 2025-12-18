@@ -6,8 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Gold {
-    private int amount; // 1, 2, 3, 5 монет
-    private int x; // Позиция на поле
+    private int amount;
+    private int x;
     private int y;
 
     public Gold() {

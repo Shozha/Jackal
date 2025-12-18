@@ -114,16 +114,6 @@ public class LobbyScreen extends JPanel {
         playersPanel.repaint();
     }
 
-    public void updatePlayersList(String[] players) {
-        if (players == null) return;
-        boolean[] readyStatus = new boolean[players.length];
-        updatePlayersWithReadyStatus(players, readyStatus);
-    }
-
-    public void addPlayer(String playerName) {
-        //
-    }
-
     public void setPlayerCount(int current, int max) {
         playerCountLabel.setText(current + "/" + max + " игроков подключено");
     }

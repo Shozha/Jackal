@@ -15,14 +15,13 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Cell {
-    private CellType type;        // Тип ландшафта
-    private CellContent content;  // Содержимое (ловушка, стрелка и т.д.)
-    private boolean isRevealed;   // ⭐ Открыта ли клетка?
-    private boolean isVisible;    // Видна ли для игрока?
-    private Gold gold;            // Золото
-    private Pirate pirate;        // Пират (если есть)
+    private CellType type;
+    private CellContent content;
+    private boolean isRevealed;
+    private boolean isVisible;
+    private Gold gold;
+    private Pirate pirate;
 
-    // Конструкторы
     public Cell() {
         this(CellType.SEA, CellContent.EMPTY);
     }
@@ -43,7 +42,6 @@ public class Cell {
     public JsonObject toJsonObject() {
         JsonObject obj = new JsonObject();
 
-        // ✅ ЕСЛИ КЛЕТКА НЕ ОТКРЫТА - отправляем только "HIDDEN"
         if (!isRevealed) {
             obj.addProperty("type", "HIDDEN");
             obj.addProperty("isRevealed", false);
@@ -51,7 +49,6 @@ public class Cell {
             return obj;
         }
 
-        // ✅ ЕСЛИ ОТКРЫТА - отправляем полную информацию
         obj.addProperty("type", type != null ? type.toString() : "SEA");
         obj.addProperty("content", content != null ? content.toString() : "EMPTY");
         obj.addProperty("isRevealed", isRevealed);
@@ -73,7 +70,6 @@ public class Cell {
         return obj;
     }
 
-    // FOG OF WAR методы
     public void reveal() {
         this.isRevealed = true;
     }
@@ -89,14 +85,11 @@ public class Cell {
         return content.toString();
     }
 
-    // Проходимость
     public boolean isWalkable(boolean carryingGold) {
-        // Море ВСЕГДА видно, но не проходимо пешком
         if (type == CellType.SEA) {
             return false;
         }
 
-        // С золотом можно ходить только по открытым плиткам
         if (carryingGold && !isRevealed) {
             return false;
         }
@@ -104,7 +97,6 @@ public class Cell {
         return true;
     }
 
-    // Золото
     public boolean canCollectGold() {
         if (!isRevealed) {
             return false;
@@ -128,12 +120,10 @@ public class Cell {
         return gold != null;
     }
 
-    // Пираты
     public boolean hasPirate() {
         return pirate != null;
     }
 
-    // Стрелки и ловушки
     public boolean hasArrow() {
         return content == CellContent.ARROW_UP ||
                 content == CellContent.ARROW_DOWN ||

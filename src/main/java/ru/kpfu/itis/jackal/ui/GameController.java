@@ -3,12 +3,15 @@ package ru.kpfu.itis.jackal.ui;
 import javax.swing.*;
 
 import com.google.gson.*;
+
 import ru.kpfu.itis.jackal.ui.screens.MainMenuScreen;
 import ru.kpfu.itis.jackal.ui.screens.LobbyScreen;
 import ru.kpfu.itis.jackal.ui.screens.GameScreen;
+
 import ru.kpfu.itis.jackal.network.NetworkClient;
 import ru.kpfu.itis.jackal.network.protocol.GameMessage;
 import ru.kpfu.itis.jackal.network.protocol.MessageType;
+
 import ru.kpfu.itis.jackal.server.GameServer;
 
 import java.util.ArrayList;
@@ -29,6 +32,7 @@ public class GameController {
     private String playerName;
     private String playerId;
     private String currentPlayer;
+    private String currentPlayerName;
     private int currentRound;
     private boolean isHost = false;
     private Integer selectedPirateId = null;
@@ -83,14 +87,15 @@ public class GameController {
 
                 networkClient.connect(host, port, playerName);
                 networkClient.setMessageListener(this::handleMessage);
-
                 SwingUtilities.invokeLater(this::showLobby);
+
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     mainMenuScreen.setStatus("✗ Ошибка: " + ex.getMessage(), true);
                     mainMenuScreen.enableConnect(true);
                 });
             }
+
         }).start();
     }
 
@@ -104,6 +109,7 @@ public class GameController {
                 System.err.println("[GameController] Ошибка при запуске сервера:");
                 e.printStackTrace();
             }
+
         });
         serverThread.setName("GameServer-Thread");
         serverThread.setDaemon(false);
@@ -113,7 +119,6 @@ public class GameController {
     private void showLobby() {
         lobbyScreen = new LobbyScreen();
         appFrame.setContent(lobbyScreen);
-
         lobbyScreen.setReadyListener(e -> handleReadyToggle());
         lobbyScreen.setStartGameListener(e -> handleStartGame());
         lobbyScreen.setExitListener(e -> handleExit());
@@ -122,22 +127,19 @@ public class GameController {
     private void handleReadyToggle() {
         boolean currentReady = lobbyScreen.getReadyStatus();
         boolean newReady = !currentReady;
-
         try {
             GameMessage readyMessage = new GameMessage();
             readyMessage.setType(MessageType.PLAYER_READY);
             readyMessage.setPlayerId(networkClient.getPlayerId());
             readyMessage.setData("{\"ready\": " + newReady + "}");
-
             networkClient.sendMessage(readyMessage);
 
             lobbyScreen.setReadyButtonStatus(newReady);
             lobbyScreen.setStatus(newReady ? "Вы готовы! Ожидаем других..." : "Вы не готовы", false);
-
             System.out.println("[GameController] Ready toggled: " + newReady);
 
         } catch (Exception ex) {
-            lobbyScreen.setStatus("✗ Ошибка: " + ex.getMessage(), false);
+            lobbyScreen.setStatus("Ошибка: " + ex.getMessage(), false);
         }
     }
 
@@ -148,17 +150,16 @@ public class GameController {
         }
 
         gameStarting = true;
-
         try {
             GameMessage startMessage = new GameMessage();
             startMessage.setType(MessageType.PLAYER_ACTION);
             startMessage.setPlayerId(networkClient.getPlayerId());
             startMessage.setData("{\"action\": \"START_GAME\"}");
-
             networkClient.sendMessage(startMessage);
-            lobbyScreen.setStatus("Запуск игры...", false);
 
+            lobbyScreen.setStatus("Запуск игры...", false);
             System.out.println("[GameController] Нажата кнопка 'Начать игру'");
+
         } catch (Exception ex) {
             gameStarting = false;
             lobbyScreen.setStatus("Ошибка: " + ex.getMessage(), false);
@@ -168,10 +169,9 @@ public class GameController {
     private void showGame() {
         gameScreen = new GameScreen();
         appFrame.setContent(gameScreen);
-
         gameScreen.setEndTurnListener(e -> handleEndTurn());
         gameScreen.setExitListener(e -> handleExit());
-        gameScreen.setCellClickListener(this::handleCellClick);
+        gameScreen.setCellClickListener((x, y) -> handleCellClick((Integer) x, (Integer) y));
     }
 
     private void handleCellClick(Integer x, Integer y) {
@@ -202,8 +202,8 @@ public class GameController {
             moveMessage.setType(MessageType.PLAYER_ACTION);
             moveMessage.setPlayerId(networkClient.getPlayerId());
             moveMessage.setData(gson.toJson(actionJson));
-
             networkClient.sendMessage(moveMessage);
+
             gameScreen.setActionStatus("Пират #" + selectedPirateId + " → (" + x + ", " + y + ")");
 
         } catch (Exception ex) {
@@ -220,11 +220,11 @@ public class GameController {
             turnMessage.setType(MessageType.PLAYER_ACTION);
             turnMessage.setPlayerId(networkClient.getPlayerId());
             turnMessage.setData(gson.toJson(turnJson));
-
             networkClient.sendMessage(turnMessage);
-            gameScreen.setActionStatus("Ход завершен, ожидаем ответа сервера...");
 
+            gameScreen.setActionStatus("Ход завершен, ожидаем ответа сервера...");
             System.out.println("[GameController] END_TURN отправлено");
+
         } catch (Exception ex) {
             gameScreen.setActionStatus("Ошибка: " + ex.getMessage());
         }
@@ -259,24 +259,26 @@ public class GameController {
             try {
                 if (type == MessageType.GAME_STATE) {
                     updateGameState(message);
-                }
-                else if (type == MessageType.GAME_START) {
+
+                } else if (type == MessageType.GAME_START) {
                     System.out.println("[GameController] GAME_START, переходим в игру");
                     showGame();
-                }
-                else if (type == MessageType.GAME_END) {
+
+                } else if (type == MessageType.GAME_END) {
                     handleGameEnd(message);
-                }
-                else if (type == MessageType.ERROR) {
+
+                } else if (type == MessageType.ERROR) {
                     JOptionPane.showMessageDialog(appFrame,
                             "Ошибка: " + message.getData(),
                             "Ошибка",
                             JOptionPane.ERROR_MESSAGE);
+
                 }
             } catch (Exception ex) {
                 System.err.println("[GameController] Ошибка при обработке сообщения:");
                 ex.printStackTrace();
             }
+
         });
     }
 
@@ -292,6 +294,7 @@ public class GameController {
             currentPlayer = data.get("currentPlayerId").getAsString();
             this.playerId = networkClient.getPlayerId();
         }
+
         if (data.has("turnNumber")) {
             currentRound = data.get("turnNumber").getAsInt();
         }
@@ -301,6 +304,7 @@ public class GameController {
             if (playersArray != null && !playersArray.isEmpty()) {
                 String[] playerNames = new String[playersArray.size()];
                 boolean[] readyStatus = new boolean[playersArray.size()];
+
                 int idx = 0;
                 for (JsonElement playerElem : playersArray) {
                     JsonObject player = playerElem.getAsJsonObject();
@@ -311,7 +315,7 @@ public class GameController {
                     idx++;
                 }
 
-                System.out.println("[GameController] 📋 Обновляем список: " + java.util.Arrays.toString(playerNames));
+                System.out.println("[GameController] Обновляем список: " + java.util.Arrays.toString(playerNames));
                 lobbyScreen.updatePlayersWithReadyStatus(playerNames, readyStatus);
                 lobbyScreen.setPlayerCount(playerNames.length, 4);
 
@@ -360,30 +364,32 @@ public class GameController {
             if (data.has("players")) {
                 JsonArray playersArray = data.getAsJsonArray("players");
                 if (playersArray != null && !playersArray.isEmpty()) {
-                    String[] playerInfos = new String[playersArray.size()];
-                    int idx = 0;
+                    int playerIndex = 0;
                     for (JsonElement playerElem : playersArray) {
                         JsonObject player = playerElem.getAsJsonObject();
                         String name = player.get("name").getAsString();
-                        int score = player.has("score") ? player.get("score").getAsInt() : 0;
-                        playerInfos[idx++] = name + ": " + score + " очков";
+                        int gold = player.has("gold") ? player.get("gold").getAsInt() : 0;
+                        boolean isReady = player.has("ready") && player.get("ready").getAsBoolean();
+                        boolean isCurrent = currentPlayer != null && currentPlayer.equals(player.get("id").getAsString());
+                        if (isCurrent) currentPlayerName = name;
+
+
+                        gameScreen.updatePlayerInfo(playerIndex, name, gold, isReady, isCurrent);
+                        playerIndex++;
                     }
-                    gameScreen.updatePlayersInfo(playerInfos);
                 }
             }
 
             if (currentPlayer != null) {
-                gameScreen.setCurrentPlayer(currentPlayer, currentRound);
+                gameScreen.setCurrentPlayer(currentPlayerName, currentRound);
                 boolean isOurTurn = currentPlayer.equals(playerId);
 
-                if (!isOurTurn) {
-                    selectedPirateId = null;
-                }
+                if (!isOurTurn) selectedPirateId = null;
 
                 if (isOurTurn) {
                     gameScreen.setGameStatus("Ваш ход!", true);
                 } else {
-                    gameScreen.setGameStatus("Ход " + currentPlayer, false);
+                    gameScreen.setGameStatus("Ход " + currentPlayerName, false);
                 }
             }
         }
@@ -391,7 +397,6 @@ public class GameController {
 
     private List<String> calculatePossibleMoves(int pirateId, JsonObject gameStateData) {
         List<String> moves = new ArrayList<>();
-
         int pirateX = -1, pirateY = -1;
 
         JsonArray boardArray = gameStateData.getAsJsonArray("board");
@@ -401,7 +406,6 @@ public class GameController {
                 if (row != null && row.size() == 9) {
                     for (int x = 0; x < 9; x++) {
                         JsonObject cell = row.get(x).getAsJsonObject();
-
                         if (cell != null && cell.has("pirate")) {
                             JsonObject pirateObj = cell.getAsJsonObject("pirate");
                             if (pirateObj != null && pirateObj.has("id")) {
@@ -422,10 +426,8 @@ public class GameController {
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     if (dx == 0 && dy == 0) continue;
-
                     int newX = pirateX + dx;
                     int newY = pirateY + dy;
-
                     if (newX >= 0 && newX < 9 && newY >= 0 && newY < 9) {
                         moves.add(newX + "," + newY);
                     }
@@ -438,6 +440,7 @@ public class GameController {
 
     private String formatCell(JsonElement cellElem) {
         if (cellElem == null || cellElem.isJsonNull()) return " ";
+
         try {
             JsonObject cell = cellElem.getAsJsonObject();
 
@@ -453,6 +456,7 @@ public class GameController {
             }
 
             return cell.has("type") ? cell.get("type").getAsString() : "SEA";
+
         } catch (Exception e) {
             return " ";
         }
