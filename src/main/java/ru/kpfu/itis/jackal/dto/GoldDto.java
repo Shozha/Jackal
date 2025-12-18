@@ -1,5 +1,8 @@
 package ru.kpfu.itis.jackal.dto;
 
+import lombok.Data;
+
+@Data
 public class GoldDto {
-    public int amount;
+    private int amount;
 }
