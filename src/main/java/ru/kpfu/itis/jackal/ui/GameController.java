@@ -386,12 +386,14 @@ public class GameController {
                     for (JsonElement playerElem : playersArray) {
                         JsonObject player = playerElem.getAsJsonObject();
                         String name = player.get("name").getAsString();
-                        int gold = player.has("gold") ? player.get("gold").getAsInt() : 0;
-                        boolean isReady = player.has("ready") && player.get("ready").getAsBoolean();
-                        boolean isCurrent = currentPlayer != null && currentPlayer.equals(player.get("id").getAsString());
+                        int goldScore = player.has("score") ?
+                                player.get("score").getAsInt() : 0;
+                        boolean isReady = player.has("ready") &&
+                                player.get("ready").getAsBoolean();
+                        boolean isCurrent = currentPlayer != null &&
+                                currentPlayer.equals(player.get("id").getAsString());
                         if (isCurrent) currentPlayerName = name;
-
-                        gameScreen.updatePlayerInfo(playerIndex, name, gold, isReady, isCurrent);
+                        gameScreen.updatePlayerInfo(playerIndex, name, goldScore, isReady, isCurrent);
                         playerIndex++;
                     }
                 }

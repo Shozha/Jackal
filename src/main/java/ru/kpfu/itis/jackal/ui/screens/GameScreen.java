@@ -6,7 +6,6 @@ import ru.kpfu.itis.jackal.ui.theme.GameTheme;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -384,8 +383,8 @@ public class GameScreen extends JPanel {
                         g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
                     }
                     String cell = board[y][x];
-                    if (cell != null && cell.startsWith("P") && cell.length() > 1) {
-                        drawPirate(g2d, px, py, cell);
+                    if (cell != null && cell.startsWith("P")) {
+                        drawAllPiratesOnCell(g2d, px, py, cell);
                     } else if (cell != null && Character.isDigit(cell.charAt(0))) {
                         drawGold(g2d, px, py, cell);
                     }
@@ -451,27 +450,80 @@ public class GameScreen extends JPanel {
             }
         }
 
-        private void drawPirate(Graphics2D g2d, int px, int py, String cell) {
-            try {
-                int pirateId = Integer.parseInt(cell.substring(1));
-                Color pirateColor = (Color) pirateColors.getOrDefault(pirateId, new Color(220, 50, 50));
-                g2d.setColor(pirateColor);
-                g2d.fillOval(px + 10, py + 10, 40, 40);
-                if (selectedPirateId != null && pirateId == selectedPirateId) {
-                    g2d.setColor(new Color(255, 255, 100));
-                    g2d.setStroke(new BasicStroke(3));
-                    g2d.drawOval(px + 8, py + 8, 44, 44);
-                    g2d.setColor(new Color(255, 200, 0, 80));
-                    g2d.fillOval(px + 12, py + 12, 36, 36);
+        private void drawAllPiratesOnCell(Graphics2D g2d, int px, int py, String cellContent) {
+            List<Integer> pirateIds = new ArrayList<>();
+
+            if (cellContent.contains(",")) {
+                String[] pirates = cellContent.split(",");
+                for (String p : pirates) {
+                    try {
+                        int id = Integer.parseInt(p.trim().substring(1));
+                        pirateIds.add(id);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException("Invalid pirate ID: " + cellContent);
+                    }
                 }
-                g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Arial", Font.BOLD, 18));
-                FontMetrics fm = g2d.getFontMetrics();
-                String text = String.valueOf(pirateId);
-                int textX = px + CELL_SIZE / 2 - fm.stringWidth(text) / 2;
-                int textY = py + CELL_SIZE / 2 + fm.getAscent() / 2 - 2;
-                g2d.drawString(text, textX, textY);
-            } catch (NumberFormatException ex) {}
+            }
+            else {
+                int idx = 0;
+                while (idx < cellContent.length()) {
+                    if (cellContent.charAt(idx) == 'P' && idx + 1 < cellContent.length()) {
+                        try {
+                            int id = Integer.parseInt(String.valueOf(cellContent.charAt(idx + 1)));
+                            pirateIds.add(id);
+                            idx += 2;
+                        } catch (Exception e) {
+                            idx++;
+                        }
+                    } else {
+                        idx++;
+                    }
+                }
+            }
+
+            if (pirateIds.isEmpty()) return;
+
+            if (selectedPirateId != null) {
+                pirateIds.sort((a, b) -> {
+                    boolean aSelected = a.equals(selectedPirateId);
+                    boolean bSelected = b.equals(selectedPirateId);
+                    if (aSelected == bSelected) return 0;
+                    return aSelected ? 1 : -1;
+                });
+            }
+
+            for (int i = 0; i < pirateIds.size(); i++) {
+                int pirateId = pirateIds.get(i);
+
+                if (selectedPirateId != null && selectedPirateId == pirateId) {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+                    drawPirateFigure(g2d, px + 10, py + 10, 40, 40, pirateId);
+                } else {
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+                    int offsetX = (i % 2) * 4;
+                    int offsetY = (i / 2) * 4;
+                    drawPirateFigure(g2d, px + 8 + offsetX, py + 8 + offsetY, 38, 38, pirateId);
+                }
+            }
+
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+        }
+
+        private void drawPirateFigure(Graphics2D g2d, int x, int y, int size, int size2, int pirateId) {
+            Color pirateColor = (Color) pirateColors.getOrDefault("P" + pirateId, new Color(100, 150, 200));
+
+            g2d.setColor(pirateColor);
+            g2d.fillOval(x + size/4, y, size/2, size/2);
+
+            g2d.fillRect(x + 3, y + size/2 - 2, size - 6, size/2 + 2);
+
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.BOLD, 9));
+            FontMetrics fm = g2d.getFontMetrics();
+            String id = String.valueOf(pirateId);
+            int textX = x + size/2 - fm.stringWidth(id)/2;
+            int textY = y + size/2 + fm.getAscent()/2;
+            g2d.drawString(id, textX, textY);
         }
 
         private void drawGold(Graphics2D g2d, int px, int py, String amount) {
