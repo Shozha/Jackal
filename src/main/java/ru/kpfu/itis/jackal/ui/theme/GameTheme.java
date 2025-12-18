@@ -2,6 +2,8 @@ package ru.kpfu.itis.jackal.ui.theme;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * GameTheme - единая тема для всего приложения Jackal
@@ -67,16 +69,16 @@ public class GameTheme {
         button.setPreferredSize(new Dimension(BUTTON_WIDTH_MEDIUM, BUTTON_HEIGHT));
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
+        button.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
+            public void mouseEntered(MouseEvent e) {
                 if (button.isEnabled()) {
                     button.setBackground(brighten(bgColor, 20));
                 }
             }
 
             @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
+            public void mouseExited(MouseEvent e) {
                 button.setBackground(bgColor);
             }
         });

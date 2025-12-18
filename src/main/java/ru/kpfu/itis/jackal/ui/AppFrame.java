@@ -2,6 +2,7 @@ package ru.kpfu.itis.jackal.ui;
 
 import ru.kpfu.itis.jackal.ui.theme.GameTheme;
 import javax.swing.*;
+import java.awt.*;
 
 public class AppFrame extends JFrame {
 
@@ -16,7 +17,7 @@ public class AppFrame extends JFrame {
 
         contentPanel = new JPanel();
         GameTheme.applyDarkTheme(contentPanel);
-        contentPanel.setLayout(new java.awt.BorderLayout());
+        contentPanel.setLayout(new BorderLayout());
 
         setContentPane(contentPanel);
         setVisible(true);
@@ -24,7 +25,7 @@ public class AppFrame extends JFrame {
 
     public void setContent(JPanel panel) {
         contentPanel.removeAll();
-        contentPanel.add(panel, java.awt.BorderLayout.CENTER);
+        contentPanel.add(panel, BorderLayout.CENTER);
         contentPanel.revalidate();
         contentPanel.repaint();
     }

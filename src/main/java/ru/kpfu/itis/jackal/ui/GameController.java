@@ -15,6 +15,7 @@ import ru.kpfu.itis.jackal.network.protocol.MessageType;
 import ru.kpfu.itis.jackal.server.GameServer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GameController {
@@ -315,7 +316,7 @@ public class GameController {
                     idx++;
                 }
 
-                System.out.println("[GameController] Обновляем список: " + java.util.Arrays.toString(playerNames));
+                System.out.println("[GameController] Обновляем список: " + Arrays.toString(playerNames));
                 lobbyScreen.updatePlayersWithReadyStatus(playerNames, readyStatus);
                 lobbyScreen.setPlayerCount(playerNames.length, 4);
 

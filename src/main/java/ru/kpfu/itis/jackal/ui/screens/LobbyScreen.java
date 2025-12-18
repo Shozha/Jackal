@@ -5,6 +5,7 @@ import ru.kpfu.itis.jackal.ui.components.PlayerCard;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -144,15 +145,15 @@ public class LobbyScreen extends JPanel {
         return isReady;
     }
 
-    public void setReadyListener(java.awt.event.ActionListener listener) {
+    public void setReadyListener(ActionListener listener) {
         readyButton.addActionListener(listener);
     }
 
-    public void setStartGameListener(java.awt.event.ActionListener listener) {
+    public void setStartGameListener(ActionListener listener) {
         startGameButton.addActionListener(listener);
     }
 
-    public void setExitListener(java.awt.event.ActionListener listener) {
+    public void setExitListener(ActionListener listener) {
         exitButton.addActionListener(listener);
     }
 }
