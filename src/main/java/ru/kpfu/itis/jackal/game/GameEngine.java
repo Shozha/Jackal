@@ -9,6 +9,7 @@ import ru.kpfu.itis.jackal.server.ClientHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GameEngine {
 
@@ -23,7 +24,7 @@ public class GameEngine {
 
     public GameEngine() {
         this.gameState = new GameState();
-        this.clients = new ArrayList<>();
+        this.clients = new CopyOnWriteArrayList<>();
         this.random = new Random();
         this.playerBeaches = new HashMap<>();
         initializeGame();
@@ -363,6 +364,13 @@ public class GameEngine {
 
         Cell currentCell = gameState.getBoard().getCell(pirate.getX(), pirate.getY());
         if (currentCell != null) currentCell.setPirate(null);
+
+        if (pirate.getGoldCarrying() > 0) {
+            player.addGoldToScore(pirate.getGoldCarrying());
+            System.out.println("[GameEngine] Игрок " + player.getName() +
+                    " получил " + pirate.getGoldCarrying() + " золота!");
+            pirate.setGoldCarrying(0);
+        }
 
         Cell beachCell = gameState.getBoard().getCell(beachX, beachY);
         if (beachCell != null) {
