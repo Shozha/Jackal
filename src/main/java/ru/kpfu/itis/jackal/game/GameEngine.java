@@ -168,7 +168,6 @@ public class GameEngine {
     }
 
     private void handlePlayerJoin(GameMessage message, ClientHandler client) {
-        // ✅ ИСПРАВЛЕНО: Использование Gson для парсинга
         PlayerJoinData joinData = gson.fromJson(message.getData(), PlayerJoinData.class);
 
         if (getPlayer(message.getPlayerId()) != null) {
@@ -209,17 +208,14 @@ public class GameEngine {
         if (beachKey != null) {
             playerBeaches.put(player.getId(), beachKey);
 
-            // ✅ ИСПРАВЛЕНО: Инициализируем пиратов на пляже!
             String[] parts = beachKey.split(",");
             int beachX = Integer.parseInt(parts[0]);
             int beachY = Integer.parseInt(parts[1]);
 
-            // Ставим пиратов на пляж
             for (Pirate pirate : player.getPirates()) {
                 pirate.setX(beachX);
                 pirate.setY(beachY);
 
-                // Добавляем пирата на доску
                 Cell beachCell = gameState.getBoard().getCell(beachX, beachY);
                 if (beachCell != null) {
                     beachCell.setPirate(pirate);
@@ -545,7 +541,6 @@ public class GameEngine {
                     if (cell != null) {
                         rowArray.add(cell.toJsonObject());
                     } else {
-                        // Если клетка null, создаём пустую
                         rowArray.add(new Cell(CellType.SEA).toJsonObject());
                     }
                 }

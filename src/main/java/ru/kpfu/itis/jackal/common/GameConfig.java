@@ -8,9 +8,9 @@ public class GameConfig {
     public static final int WINNING_SCORE = 50;
 
     public static final int[][] SHIP_START_POSITIONS = {
-            {0, 0}, //RED
-            {8, 0}, //BLUE
-            {0, 8}, //GREEN
-            {8, 8}  //YELLOW
+            {0, 0},
+            {8, 0},
+            {0, 8},
+            {8, 8}
     };
 }

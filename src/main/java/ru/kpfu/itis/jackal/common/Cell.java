@@ -4,14 +4,6 @@ import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Cell - клетка игровой доски
- * ✅ Версия [98] - Gson JSON Serialization
- *
- * ✅ Добавлена сериализация в JsonObject для Gson
- * ✅ Методы для работы с пиратами, золотом, ловушками
- * ✅ Поддержка FOG OF WAR (isRevealed, isVisible)
- */
 @Getter
 @Setter
 public class Cell {

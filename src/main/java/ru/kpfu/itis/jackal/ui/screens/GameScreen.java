@@ -479,9 +479,7 @@ public class GameScreen extends JPanel {
                 int textY = py + CELL_SIZE / 2 + fm.getAscent() / 2 - 2;
                 g2d.drawString(text, textX, textY);
 
-            } catch (NumberFormatException ex) {
-                // Skip
-            }
+            } catch (NumberFormatException ex) {}
         }
 
         private void drawGold(Graphics2D g2d, int px, int py, String amount) {

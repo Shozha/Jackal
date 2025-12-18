@@ -5,10 +5,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/**
- * GameTheme - единая тема для всего приложения Jackal
- * Все цвета, шрифты и размеры в одном месте
- */
 public class GameTheme {
     public static final Color BACKGROUND_PRIMARY = new Color(15, 15, 25);
     public static final Color BACKGROUND_SECONDARY = new Color(25, 25, 40);
