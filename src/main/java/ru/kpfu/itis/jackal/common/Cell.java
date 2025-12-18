@@ -55,8 +55,11 @@ public class Cell {
             obj.add("pirate", pirateObj);
         }
 
-        if (gold != null) {
-            obj.addProperty("gold", gold.getAmount());
+        if (canCollectGold()) {
+            int goldAmount = getGoldAmount();
+            if (goldAmount > 0) {
+                obj.addProperty("gold", goldAmount);
+            }
         }
 
         return obj;

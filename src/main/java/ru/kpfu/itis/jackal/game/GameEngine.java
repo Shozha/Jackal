@@ -32,8 +32,24 @@ public class GameEngine {
     private void initializeGame() {
         Board board = new Board(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT);
         initializeBoard(board);
+
+        initializeGold(board);
+
         gameState.setBoard(board);
         System.out.println("[GameEngine] Игра инициализирована с FOG OF WAR");
+    }
+
+    private void initializeGold(Board board) {
+        for (int x = 1; x < 8; x++) {
+            for (int y = 1; y < 8; y++) {
+                Cell cell = board.getCell(x, y);
+                if (cell != null && cell.canCollectGold()) {
+                    int amount = cell.getGoldAmount();
+                    cell.setGold(new Gold(amount, x, y));
+                    System.out.println("[GameEngine] 💰 Золото (" + amount + ") на (" + x + "," + y + ")");
+                }
+            }
+        }
     }
 
     private void initializeBoard(Board board) {
