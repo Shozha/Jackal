@@ -1,162 +1,152 @@
 package ru.kpfu.itis.jackal.ui.screens;
 
+import ru.kpfu.itis.jackal.ui.theme.GameTheme;
+import ru.kpfu.itis.jackal.ui.components.PlayerCard;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * LobbyScreen - экран лобби с ожиданием игроков и кнопкой Ready
- * Версия [88] - показывает "(готов)"/"(не готов)" вместо галочек
- */
 public class LobbyScreen extends JPanel {
 
-    private JList<String> playersListView;
-    private DefaultListModel<String> playersListModel;
     private JLabel playerCountLabel;
     private JLabel statusLabel;
     private JButton readyButton;
     private JButton startGameButton;
     private JButton exitButton;
+    private JPanel playersPanel;
+    private Map<Integer, PlayerCard> playerCards = new HashMap<>();
+
     private boolean isReady = false;
 
     public LobbyScreen() {
         setLayout(new BorderLayout());
-        setBackground(new Color(245, 245, 245));
+        GameTheme.applyDarkTheme(this);
 
-        // TOP - заголовок
         JPanel topPanel = new JPanel(new GridBagLayout());
-        topPanel.setBackground(new Color(51, 51, 51));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(15, 15, 15, 15);
+        topPanel.setBackground(GameTheme.BACKGROUND_SECONDARY);
+        topPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, GameTheme.BORDER_BRIGHT));
 
-        JLabel titleLabel = new JLabel("Ожидание подключения других игроков...");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
-        titleLabel.setForeground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(GameTheme.PADDING_XLARGE, GameTheme.PADDING_XLARGE,
+                GameTheme.PADDING_XLARGE, GameTheme.PADDING_XLARGE);
+
+        JLabel titleLabel = GameTheme.createAccentLabel("Ожидание других игроков...", GameTheme.FONT_HEADING_2);
         gbc.gridx = 0;
         gbc.gridy = 0;
         topPanel.add(titleLabel, gbc);
 
-        playerCountLabel = new JLabel("0/4 игроков подключено");
-        playerCountLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        playerCountLabel.setForeground(new Color(200, 200, 200));
+        playerCountLabel = GameTheme.createLabel("0/4 игроков", GameTheme.FONT_BODY, GameTheme.TEXT_SECONDARY);
         gbc.gridy = 1;
         topPanel.add(playerCountLabel, gbc);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // CENTER - список игроков
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        centerPanel.setBackground(GameTheme.BACKGROUND_PRIMARY);
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(
+                GameTheme.PADDING_XLARGE, GameTheme.PADDING_XLARGE,
+                GameTheme.PADDING_XLARGE, GameTheme.PADDING_XLARGE
+        ));
 
-        JLabel playersLabel = new JLabel("Подключенные игроки:");
-        playersLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        JLabel playersLabel = GameTheme.createAccentLabel("Подключённые игроки:", GameTheme.FONT_HEADING_3);
         centerPanel.add(playersLabel, BorderLayout.NORTH);
 
-        playersListModel = new DefaultListModel<>();
-        playersListView = new JList<>(playersListModel);
-        playersListView.setFont(new Font("Arial", Font.PLAIN, 12));
-        playersListView.setBackground(Color.WHITE);
-        playersListView.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        playersPanel = new JPanel();
+        playersPanel.setLayout(new BoxLayout(playersPanel, BoxLayout.Y_AXIS));
+        playersPanel.setBackground(GameTheme.BACKGROUND_PRIMARY);
+        playersPanel.setBorder(BorderFactory.createEmptyBorder(
+                GameTheme.PADDING_LARGE, 0, GameTheme.PADDING_LARGE, 0
+        ));
 
-        JScrollPane scrollPane = new JScrollPane(playersListView);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(153, 153, 153)));
+        JScrollPane scrollPane = new JScrollPane(playersPanel);
+        scrollPane.setBackground(GameTheme.BACKGROUND_PRIMARY);
+        scrollPane.getViewport().setBackground(GameTheme.BACKGROUND_PRIMARY);
+        scrollPane.setBorder(BorderFactory.createLineBorder(GameTheme.BORDER_LIGHT, 1));
+        scrollPane.getVerticalScrollBar().setBackground(GameTheme.BACKGROUND_SECONDARY);
+
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
-        statusLabel = new JLabel("Ожидание подключения...");
-        statusLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        statusLabel.setForeground(new Color(255, 152, 0));
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+        statusLabel = GameTheme.createLabel("Ожидание подключения...", GameTheme.FONT_BODY, GameTheme.TEXT_SECONDARY);
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(GameTheme.PADDING_MEDIUM, 0, 0, 0));
         centerPanel.add(statusLabel, BorderLayout.SOUTH);
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // BOTTOM - кнопки
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
-        bottomPanel.setBackground(new Color(245, 245, 245));
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, GameTheme.PADDING_XLARGE, GameTheme.PADDING_XLARGE));
+        bottomPanel.setBackground(GameTheme.BACKGROUND_SECONDARY);
+        bottomPanel.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, GameTheme.BORDER_BRIGHT));
 
-        readyButton = new JButton("Готов");
-        readyButton.setFont(new Font("Arial", Font.BOLD, 14));
-        readyButton.setBackground(new Color(255, 152, 0));
-        readyButton.setForeground(Color.WHITE);
-        readyButton.setFocusPainted(false);
-        readyButton.setPreferredSize(new Dimension(120, 40));
+        readyButton = GameTheme.createButton("Готов", GameTheme.ACCENT_WARNING);
         bottomPanel.add(readyButton);
 
-        startGameButton = new JButton("Начать игру");
-        startGameButton.setFont(new Font("Arial", Font.BOLD, 14));
-        startGameButton.setBackground(new Color(76, 175, 80));
-        startGameButton.setForeground(Color.WHITE);
-        startGameButton.setFocusPainted(false);
+        startGameButton = GameTheme.createButtonLarge("Начать игру", GameTheme.ACCENT_SUCCESS);
         startGameButton.setEnabled(false);
-        startGameButton.setPreferredSize(new Dimension(180, 40));
         bottomPanel.add(startGameButton);
 
-        exitButton = new JButton("Выход");
-        exitButton.setFont(new Font("Arial", Font.BOLD, 14));
-        exitButton.setBackground(new Color(244, 67, 54));
-        exitButton.setForeground(Color.WHITE);
-        exitButton.setFocusPainted(false);
-        exitButton.setPreferredSize(new Dimension(120, 40));
+        exitButton = GameTheme.createButton("Выход", GameTheme.ACCENT_DANGER);
         bottomPanel.add(exitButton);
 
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    public void addPlayer(String playerName) {
-        if (!playersListModel.contains("• " + playerName)) {
-            playersListModel.addElement("• " + playerName);
+    public void updatePlayersWithReadyStatus(String[] players, boolean[] readyStatus) {
+        playersPanel.removeAll();
+        playerCards.clear();
+
+        if (players == null) return;
+
+        for (int i = 0; i < players.length; i++) {
+            String playerName = players[i];
+            boolean isReady = readyStatus != null && i < readyStatus.length && readyStatus[i];
+
+            PlayerCard card = new PlayerCard(playerName, 0, i, isReady, false);
+            playersPanel.add(card);
+            playersPanel.add(Box.createVerticalStrut(GameTheme.PADDING_MEDIUM));
+
+            playerCards.put(i, card);
         }
+
+        playersPanel.add(Box.createVerticalGlue());
+
+        playersPanel.revalidate();
+        playersPanel.repaint();
+    }
+
+    public void updatePlayersList(String[] players) {
+        if (players == null) return;
+        boolean[] readyStatus = new boolean[players.length];
+        updatePlayersWithReadyStatus(players, readyStatus);
+    }
+
+    public void addPlayer(String playerName) {
+        //
     }
 
     public void setPlayerCount(int current, int max) {
         playerCountLabel.setText(current + "/" + max + " игроков подключено");
     }
 
-    public void updatePlayersList(String[] players) {
-        playersListModel.clear();
-        for (String player : players) {
-            playersListModel.addElement("• " + player);
-        }
-    }
-
-    /**
-     * ⭐ НОВОЕ: показываем "(готов)"/"(не готов)" вместо галочек
-     */
-    public void updatePlayersWithReadyStatus(String[] players, boolean[] readyStatus) {
-        playersListModel.clear();
-        for (int i = 0; i < players.length; i++) {
-            String status = (readyStatus != null && i < readyStatus.length && readyStatus[i])
-                    ? " (готов)"
-                    : " (не готов)";
-            playersListModel.addElement("• " + players[i] + status);
-        }
-        playersListView.repaint();
-    }
-
-    /**
-     * ⭐ Явное отключение кнопки "Начать игру"
-     */
     public void setStatus(String status, boolean allReady) {
         statusLabel.setText(status);
         if (allReady) {
-            statusLabel.setForeground(new Color(76, 175, 80));
+            statusLabel.setForeground(GameTheme.ACCENT_SUCCESS);
             startGameButton.setEnabled(true);
         } else {
-            statusLabel.setForeground(new Color(255, 152, 0));
+            statusLabel.setForeground(GameTheme.ACCENT_WARNING);
             startGameButton.setEnabled(false);
         }
     }
 
-    /**
-     * Обновляем статус кнопки Ready
-     */
     public void setReadyButtonStatus(boolean ready) {
         this.isReady = ready;
         if (ready) {
             readyButton.setText("Отменить");
-            readyButton.setBackground(new Color(76, 175, 80));
+            readyButton.setBackground(GameTheme.ACCENT_SUCCESS);
         } else {
             readyButton.setText("Готов");
-            readyButton.setBackground(new Color(255, 152, 0));
+            readyButton.setBackground(GameTheme.ACCENT_WARNING);
         }
     }
 

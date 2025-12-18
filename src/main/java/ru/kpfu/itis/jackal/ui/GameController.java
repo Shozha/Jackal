@@ -14,17 +14,6 @@ import ru.kpfu.itis.jackal.server.GameServer;
 import java.util.ArrayList;
 import java.util.List;
 
-
-/**
- * GameController - главный контроллер приложения
- * ✅ Версия [FIXED] - ВЕЗДЕ GSON!
- *
- * ИСПРАВЛЕНИЯ:
- * ✅ Jackson → Gson везде
- * ✅ ObjectMapper → Gson
- * ✅ JsonNode → JsonObject
- * ✅ readTree() → JsonParser.parseString()
- */
 public class GameController {
 
     private AppFrame appFrame;
@@ -65,17 +54,17 @@ public class GameController {
         boolean createServer = mainMenuScreen.isHostSelected();
 
         if (name == null || name.trim().isEmpty()) {
-            mainMenuScreen.setStatus("✗ Введите имя игрока", true);
+            mainMenuScreen.setStatus("Введите имя игрока", true);
             return;
         }
 
         if (host == null || host.trim().isEmpty()) {
-            mainMenuScreen.setStatus("✗ Введите адрес сервера", true);
+            mainMenuScreen.setStatus("Введите адрес сервера", true);
             return;
         }
 
         if (port < 1 || port > 65535) {
-            mainMenuScreen.setStatus("✗ Неправильный порт", true);
+            mainMenuScreen.setStatus("Неправильный порт", true);
             return;
         }
 
@@ -109,10 +98,10 @@ public class GameController {
         gameServer = new GameServer(port);
         serverThread = new Thread(() -> {
             try {
-                System.out.println("[GameController] ⭐ Запуск встроенного сервера на порту " + port + "...");
+                System.out.println("[GameController] Запуск встроенного сервера на порту " + port + "...");
                 gameServer.start();
             } catch (Exception e) {
-                System.err.println("[GameController] ✗ Ошибка при запуске сервера:");
+                System.err.println("[GameController] Ошибка при запуске сервера:");
                 e.printStackTrace();
             }
         });
@@ -145,7 +134,7 @@ public class GameController {
             lobbyScreen.setReadyButtonStatus(newReady);
             lobbyScreen.setStatus(newReady ? "Вы готовы! Ожидаем других..." : "Вы не готовы", false);
 
-            System.out.println("[GameController] 🔘 Ready toggled: " + newReady);
+            System.out.println("[GameController] Ready toggled: " + newReady);
 
         } catch (Exception ex) {
             lobbyScreen.setStatus("✗ Ошибка: " + ex.getMessage(), false);
@@ -154,7 +143,7 @@ public class GameController {
 
     private void handleStartGame() {
         if (gameStarting) {
-            System.out.println("[GameController] ⚠️ Игра уже запускается");
+            System.out.println("[GameController] Игра уже запускается");
             return;
         }
 
@@ -169,10 +158,10 @@ public class GameController {
             networkClient.sendMessage(startMessage);
             lobbyScreen.setStatus("Запуск игры...", false);
 
-            System.out.println("[GameController] 🎮 Нажата кнопка 'Начать игру'");
+            System.out.println("[GameController] Нажата кнопка 'Начать игру'");
         } catch (Exception ex) {
             gameStarting = false;
-            lobbyScreen.setStatus("✗ Ошибка: " + ex.getMessage(), false);
+            lobbyScreen.setStatus("Ошибка: " + ex.getMessage(), false);
         }
     }
 
@@ -193,12 +182,12 @@ public class GameController {
         }
 
         if (currentPlayer == null || !currentPlayer.equals(playerId)) {
-            gameScreen.setActionStatus("✗ Это не ваш ход!");
+            gameScreen.setActionStatus("Это не ваш ход!");
             return;
         }
 
         if (selectedPirateId == null) {
-            gameScreen.setActionStatus("✗ Сначала выберите пирата");
+            gameScreen.setActionStatus("Сначала выберите пирата");
             return;
         }
 
@@ -218,14 +207,14 @@ public class GameController {
             gameScreen.setActionStatus("Пират #" + selectedPirateId + " → (" + x + ", " + y + ")");
 
         } catch (Exception ex) {
-            gameScreen.setActionStatus("✗ Ошибка: " + ex.getMessage());
+            gameScreen.setActionStatus("Ошибка: " + ex.getMessage());
         }
     }
 
     private void handleEndTurn() {
         try {
             JsonObject turnJson = new JsonObject();
-            turnJson.addProperty("actionType", "ENDTURN");
+            turnJson.addProperty("actionType", "END_TURN");
 
             GameMessage turnMessage = new GameMessage();
             turnMessage.setType(MessageType.PLAYER_ACTION);
@@ -235,14 +224,14 @@ public class GameController {
             networkClient.sendMessage(turnMessage);
             gameScreen.setActionStatus("Ход завершен, ожидаем ответа сервера...");
 
-            System.out.println("[GameController] 🔄 ENDTURN отправлено");
+            System.out.println("[GameController] END_TURN отправлено");
         } catch (Exception ex) {
-            gameScreen.setActionStatus("✗ Ошибка: " + ex.getMessage());
+            gameScreen.setActionStatus("Ошибка: " + ex.getMessage());
         }
     }
 
     private void handleExit() {
-        System.out.println("[GameController] 👋 Выход из приложения...");
+        System.out.println("[GameController] Выход из приложения...");
         networkClient.disconnect();
 
         if (isHost && serverThread != null && serverThread.isAlive()) {
@@ -250,7 +239,7 @@ public class GameController {
                 serverThread.interrupt();
                 serverThread.join(5000);
             } catch (InterruptedException e) {
-                System.err.println("[GameController] ⚠️ Ошибка: " + e.getMessage());
+                System.err.println("[GameController] Ошибка: " + e.getMessage());
             }
         }
 
@@ -259,12 +248,12 @@ public class GameController {
 
     private void handleMessage(GameMessage message) {
         if (message == null || message.getType() == null) {
-            System.err.println("[GameController] ❌ Null сообщение");
+            System.err.println("[GameController] Null сообщение");
             return;
         }
 
         MessageType type = message.getType();
-        System.out.println("[GameController] 📬 Получено: " + type);
+        System.out.println("[GameController] Получено: " + type);
 
         SwingUtilities.invokeLater(() -> {
             try {
@@ -272,7 +261,7 @@ public class GameController {
                     updateGameState(message);
                 }
                 else if (type == MessageType.GAME_START) {
-                    System.out.println("[GameController] 🎮 GAME_START, переходим в игру");
+                    System.out.println("[GameController] GAME_START, переходим в игру");
                     showGame();
                 }
                 else if (type == MessageType.GAME_END) {
@@ -285,7 +274,7 @@ public class GameController {
                             JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception ex) {
-                System.err.println("[GameController] ❌ Ошибка при обработке сообщения:");
+                System.err.println("[GameController] Ошибка при обработке сообщения:");
                 ex.printStackTrace();
             }
         });
@@ -309,7 +298,7 @@ public class GameController {
 
         if (lobbyScreen != null && data.has("players")) {
             JsonArray playersArray = data.getAsJsonArray("players");
-            if (playersArray != null && playersArray.size() > 0) {
+            if (playersArray != null && !playersArray.isEmpty()) {
                 String[] playerNames = new String[playersArray.size()];
                 boolean[] readyStatus = new boolean[playersArray.size()];
                 int idx = 0;
@@ -335,10 +324,10 @@ public class GameController {
                 }
 
                 if (playerNames.length >= 2 && allReady) {
-                    System.out.println("[GameController] ✅ ВСЕ ГОТОВЫ!");
+                    System.out.println("[GameController] ВСЕ ГОТОВЫ!");
                     lobbyScreen.setStatus("Все готовы! Нажмите 'Начать игру'", true);
                 } else {
-                    System.out.println("[GameController] ❌ НЕ ВСЕ ГОТОВЫ");
+                    System.out.println("[GameController] НЕ ВСЕ ГОТОВЫ");
                     lobbyScreen.setStatus("Ожидаем готовности...", false);
                     gameStarting = false;
                 }
@@ -363,14 +352,14 @@ public class GameController {
                     if (selectedPirateId != null) {
                         List<String> possibleMoves = calculatePossibleMoves(selectedPirateId, data);
                         gameScreen.updatePossibleMoves(possibleMoves);
-                        System.out.println("[GameController] 🎯 Ходы: " + possibleMoves);
+                        System.out.println("[GameController] Ходы: " + possibleMoves);
                     }
                 }
             }
 
             if (data.has("players")) {
                 JsonArray playersArray = data.getAsJsonArray("players");
-                if (playersArray != null && playersArray.size() > 0) {
+                if (playersArray != null && !playersArray.isEmpty()) {
                     String[] playerInfos = new String[playersArray.size()];
                     int idx = 0;
                     for (JsonElement playerElem : playersArray) {
@@ -392,9 +381,9 @@ public class GameController {
                 }
 
                 if (isOurTurn) {
-                    gameScreen.setGameStatus("✅ Ваш ход!", true);
+                    gameScreen.setGameStatus("Ваш ход!", true);
                 } else {
-                    gameScreen.setGameStatus("⏳ Ход " + currentPlayer, false);
+                    gameScreen.setGameStatus("Ход " + currentPlayer, false);
                 }
             }
         }
@@ -420,7 +409,7 @@ public class GameController {
                                 if (id == pirateId) {
                                     pirateX = x;
                                     pirateY = y;
-                                    System.out.println("[GameController] 🧭 Пират найден на (" + x + "," + y + ")");
+                                    System.out.println("[GameController] Пират найден на (" + x + "," + y + ")");
                                 }
                             }
                         }
@@ -463,8 +452,7 @@ public class GameController {
                 return String.valueOf(amount);
             }
 
-            String type = cell.has("type") ? cell.get("type").getAsString() : "SEA";
-            return type;
+            return cell.has("type") ? cell.get("type").getAsString() : "SEA";
         } catch (Exception e) {
             return " ";
         }

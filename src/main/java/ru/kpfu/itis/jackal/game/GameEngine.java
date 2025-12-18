@@ -392,6 +392,9 @@ public class GameEngine {
 
         Cell beachCell = gameState.getBoard().getCell(beachX, beachY);
         if (beachCell != null) {
+            beachCell.reveal();
+            beachCell.makeVisible();
+
             beachCell.setPirate(pirate);
             pirate.setX(beachX);
             pirate.setY(beachY);
