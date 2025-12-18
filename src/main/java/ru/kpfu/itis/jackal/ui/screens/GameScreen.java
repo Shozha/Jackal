@@ -3,7 +3,6 @@ package ru.kpfu.itis.jackal.ui.screens;
 import lombok.Setter;
 import ru.kpfu.itis.jackal.ui.components.PlayerCard;
 import ru.kpfu.itis.jackal.ui.theme.GameTheme;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -11,9 +10,10 @@ import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class GameScreen extends JPanel {
-
     private static final int BOARD_SIZE = 9;
     private static final int CELL_SIZE = 60;
 
@@ -21,21 +21,18 @@ public class GameScreen extends JPanel {
     private JLabel roundLabel;
     private JLabel gameStatusLabel;
     private JLabel actionStatusLabel;
-
     private PlayerCard[] playerCards;
     private JPanel playersPanel;
-
     private JButton selectPirateButton;
     private JButton endTurnButton;
     private JButton exitButton;
-
     private BoardPanel boardPanel;
     private BiConsumer onCellClicked;
     private Runnable onEndTurn;
-
     private Integer selectedPirateId = null;
     private Set possibleMoves = new HashSet<>();
     private Map pirateColors = new HashMap<>();
+    private JTextArea eventLog;  // НОВОЕ: Лог событий
 
     public GameScreen() {
         setLayout(new BorderLayout());
@@ -44,17 +41,13 @@ public class GameScreen extends JPanel {
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 15));
         topPanel.setBackground(GameTheme.BACKGROUND_SECONDARY);
         topPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, GameTheme.BORDER_BRIGHT));
-
         currentPlayerLabel = GameTheme.createAccentLabel("Ход: --", GameTheme.FONT_HEADING_2);
         topPanel.add(currentPlayerLabel);
-
         JSeparator sep1 = GameTheme.createVerticalSeparator();
         sep1.setPreferredSize(new Dimension(2, 20));
         topPanel.add(sep1);
-
         roundLabel = GameTheme.createLabel("Раунд: 0", GameTheme.FONT_HEADING_2, GameTheme.ACCENT_GOLD);
         topPanel.add(roundLabel);
-
         add(topPanel, BorderLayout.NORTH);
 
         JPanel centerPanel = new JPanel(new BorderLayout());
@@ -69,9 +62,37 @@ public class GameScreen extends JPanel {
         boardLabel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         leftPanel.add(boardLabel, BorderLayout.NORTH);
 
-        boardPanel = new BoardPanel();
-        leftPanel.add(boardPanel, BorderLayout.CENTER);
+        JSplitPane boardLogSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        boardLogSplit.setOneTouchExpandable(true);
+        boardLogSplit.setDividerLocation(540);
 
+        boardPanel = new BoardPanel();
+        JPanel boardWrapper = new JPanel(new BorderLayout());
+        GameTheme.applyDarkTheme(boardWrapper);
+        boardWrapper.add(boardPanel, BorderLayout.CENTER);
+        boardLogSplit.setTopComponent(boardWrapper);
+
+        eventLog = new JTextArea();
+        eventLog.setEditable(false);
+        eventLog.setLineWrap(true);
+        eventLog.setWrapStyleWord(true);
+        eventLog.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        eventLog.setForeground(GameTheme.TEXT_SECONDARY);
+        eventLog.setBackground(GameTheme.BACKGROUND_TERTIARY);
+        eventLog.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JScrollPane logScroll = new JScrollPane(eventLog);
+        logScroll.setBorder(BorderFactory.createLineBorder(GameTheme.BORDER_LIGHT, 1));
+
+        JPanel logPanel = new JPanel(new BorderLayout());
+        JLabel logLabel = GameTheme.createLabel("[LOG] Events:", GameTheme.FONT_SMALL, GameTheme.ACCENT_GOLD);
+        logLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        logPanel.add(logLabel, BorderLayout.NORTH);
+        logPanel.add(logScroll, BorderLayout.CENTER);
+        GameTheme.applyDarkTheme(logPanel);
+
+        boardLogSplit.setBottomComponent(logPanel);
+        leftPanel.add(boardLogSplit, BorderLayout.CENTER);
         centerPanel.add(leftPanel, BorderLayout.CENTER);
 
         JPanel rightPanel = new JPanel(new BorderLayout());
@@ -86,7 +107,6 @@ public class GameScreen extends JPanel {
         playersPanel = new JPanel();
         playersPanel.setLayout(new BoxLayout(playersPanel, BoxLayout.Y_AXIS));
         GameTheme.applyDarkTheme(playersPanel);
-
         JScrollPane playersScroll = new JScrollPane(playersPanel);
         playersScroll.getViewport().setBackground(GameTheme.BACKGROUND_TERTIARY);
         playersScroll.setBorder(BorderFactory.createLineBorder(GameTheme.BORDER_LIGHT, 1));
@@ -97,7 +117,6 @@ public class GameScreen extends JPanel {
         rightPanel.add(gameStatusLabel, BorderLayout.SOUTH);
 
         centerPanel.add(rightPanel, BorderLayout.EAST);
-
         add(centerPanel, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
@@ -118,7 +137,6 @@ public class GameScreen extends JPanel {
 
         exitButton = GameTheme.createButton("Выход", GameTheme.ACCENT_DANGER);
         bottomPanel.add(exitButton);
-
         add(bottomPanel, BorderLayout.SOUTH);
 
         endTurnButton.addActionListener(e -> {
@@ -145,12 +163,7 @@ public class GameScreen extends JPanel {
     public void updateAllPlayersInfo(String[] playerInfos) {
         for (int i = 0; i < Math.min(playerInfos.length, playerCards.length); i++) {
             String info = playerInfos[i];
-            playerCards[i].updatePlayerInfo(
-                    "Игрок " + (i + 1),
-                    100,
-                    true,
-                    false
-            );
+            playerCards[i].updatePlayerInfo("Игрок " + (i + 1), 100, true, false);
         }
     }
 
@@ -174,7 +187,6 @@ public class GameScreen extends JPanel {
     public void setCurrentPlayer(String playerName, int round) {
         currentPlayerLabel.setText("Ход: " + playerName);
         roundLabel.setText("Раунд: " + round);
-
         for (PlayerCard playerCard : playerCards) {
             playerCard.setCurrentTurn(false);
         }
@@ -190,7 +202,6 @@ public class GameScreen extends JPanel {
         possibleMoves.clear();
         boardPanel.setSelectedPirateId(null);
         boardPanel.setPossibleMoves(possibleMoves);
-
         if (isOurTurn) {
             gameStatusLabel.setForeground(GameTheme.ACCENT_SUCCESS);
             selectPirateButton.setEnabled(true);
@@ -198,7 +209,6 @@ public class GameScreen extends JPanel {
             gameStatusLabel.setForeground(GameTheme.ACCENT_WARNING);
             selectPirateButton.setEnabled(false);
         }
-
         endTurnButton.setEnabled(isOurTurn);
         boardPanel.repaint();
     }
@@ -220,33 +230,35 @@ public class GameScreen extends JPanel {
         boardPanel.setCellClickListener(listener);
     }
 
+    public void addLog(String message) {
+        String timestamp = new SimpleDateFormat("HH:mm:ss").format(new Date());
+        String logEntry = String.format("[%s] %s\n", timestamp, message);
+        eventLog.append(logEntry);
+        eventLog.setCaretPosition(eventLog.getDocument().getLength());
+    }
+
+    public void clearLog() {
+        eventLog.setText("");
+    }
+
     private void showPirateSelection() {
-        JDialog dialog = new JDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
-                "Выбрать пирата",
-                true
-        );
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Выбрать пирата", true);
         dialog.setSize(320, 220);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new GridLayout(3, 1, 15, 15));
-
         JPanel contentPane = (JPanel) dialog.getContentPane();
         GameTheme.applyDarkTheme(contentPane);
         contentPane.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         for (int i = 1; i <= 3; i++) {
             final int pirateId = i;
-            JButton pirateBtn = GameTheme.createButtonLarge(
-                    "Пират #" + i,
-                    GameTheme.ACCENT_PRIMARY
-            );
+            JButton pirateBtn = GameTheme.createButtonLarge("Пират #" + i, GameTheme.ACCENT_PRIMARY);
             pirateBtn.addActionListener(e -> {
                 selectPirate(pirateId);
                 dialog.dispose();
             });
             contentPane.add(pirateBtn);
         }
-
         dialog.setVisible(true);
     }
 
@@ -259,7 +271,6 @@ public class GameScreen extends JPanel {
     }
 
     public static class BoardPanel extends JPanel {
-
         private String[][] board;
         private int selectedRow = -1;
         private int selectedCol = -1;
@@ -276,19 +287,15 @@ public class GameScreen extends JPanel {
             setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
             GameTheme.applyDarkTheme(this);
             setMinimumSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
-
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     int col = e.getX() / CELL_SIZE;
                     int row = e.getY() / CELL_SIZE;
-
                     if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
                         return;
                     }
-
                     String cell = board[row][col];
-
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
                         try {
                             int pirateId = Integer.parseInt(cell.substring(1));
@@ -302,7 +309,6 @@ public class GameScreen extends JPanel {
                             System.err.println("[GameScreen] Ошибка парсинга пирата: " + cell);
                         }
                     }
-
                     String moveKey = col + "," + row;
                     if (selectedPirateId != null && possibleMoves.contains(moveKey)) {
                         selectedCol = col;
@@ -313,7 +319,6 @@ public class GameScreen extends JPanel {
                         }
                         return;
                     }
-
                     if (selectedPirateId != null && cellClickListener != null) {
                         selectedCol = col;
                         selectedRow = row;
@@ -361,25 +366,21 @@ public class GameScreen extends JPanel {
             super.paintComponent(g);
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
             for (int y = 0; y < BOARD_SIZE; y++) {
                 for (int x = 0; x < BOARD_SIZE; x++) {
                     int px = x * CELL_SIZE;
                     int py = y * CELL_SIZE;
                     drawCellWithStyle(g2d, px, py, board[y][x]);
-
                     String moveKey = x + "," + y;
                     if (possibleMoves.contains(moveKey)) {
                         g2d.setColor(new Color(100, 200, 255, 80));
                         g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                     }
-
                     if (x == selectedCol && y == selectedRow) {
                         g2d.setColor(new Color(255, 100, 100));
                         g2d.setStroke(new BasicStroke(3));
                         g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
                     }
-
                     String cell = board[y][x];
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
                         drawPirate(g2d, px, py, cell);
@@ -392,19 +393,13 @@ public class GameScreen extends JPanel {
 
         private void drawCellWithStyle(Graphics2D g2d, int px, int py, String cellType) {
             Color baseColor = getCellColor(cellType);
-            GradientPaint gradient = new GradientPaint(
-                    px, py, baseColor.brighter(),
-                    px, py + CELL_SIZE, baseColor.darker()
-            );
+            GradientPaint gradient = new GradientPaint(px, py, baseColor.brighter(), px, py + CELL_SIZE, baseColor.darker());
             g2d.setPaint(gradient);
             g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-
             drawPattern(g2d, px, py, cellType);
-
             g2d.setColor(new Color(0, 0, 0, 40));
             g2d.fillRect(px + CELL_SIZE - 3, py + 3, 3, CELL_SIZE);
             g2d.fillRect(px + 3, py + CELL_SIZE - 3, CELL_SIZE - 3, 3);
-
             g2d.setColor(new Color(100, 100, 120, 150));
             g2d.setStroke(new BasicStroke(1));
             g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
@@ -412,7 +407,6 @@ public class GameScreen extends JPanel {
 
         private void drawPattern(Graphics2D g2d, int px, int py, String cellType) {
             if (cellType == null || cellType.equals(" ")) return;
-
             g2d.setColor(new Color(255, 255, 255, 15));
             switch (cellType) {
                 case "FOREST":
@@ -459,10 +453,8 @@ public class GameScreen extends JPanel {
             try {
                 int pirateId = Integer.parseInt(cell.substring(1));
                 Color pirateColor = (Color) pirateColors.getOrDefault(pirateId, new Color(220, 50, 50));
-
                 g2d.setColor(pirateColor);
                 g2d.fillOval(px + 10, py + 10, 40, 40);
-
                 if (selectedPirateId != null && pirateId == selectedPirateId) {
                     g2d.setColor(new Color(255, 255, 100));
                     g2d.setStroke(new BasicStroke(3));
@@ -470,7 +462,6 @@ public class GameScreen extends JPanel {
                     g2d.setColor(new Color(255, 200, 0, 80));
                     g2d.fillOval(px + 12, py + 12, 36, 36);
                 }
-
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Arial", Font.BOLD, 18));
                 FontMetrics fm = g2d.getFontMetrics();
@@ -478,25 +469,18 @@ public class GameScreen extends JPanel {
                 int textX = px + CELL_SIZE / 2 - fm.stringWidth(text) / 2;
                 int textY = py + CELL_SIZE / 2 + fm.getAscent() / 2 - 2;
                 g2d.drawString(text, textX, textY);
-
             } catch (NumberFormatException ex) {}
         }
 
         private void drawGold(Graphics2D g2d, int px, int py, String amount) {
-            GradientPaint goldGradient = new GradientPaint(
-                    px + 15, py + 15, new Color(255, 235, 59),
-                    px + 45, py + 45, new Color(255, 193, 7)
-            );
+            GradientPaint goldGradient = new GradientPaint(px + 15, py + 15, new Color(255, 235, 59), px + 45, py + 45, new Color(255, 193, 7));
             g2d.setPaint(goldGradient);
             g2d.fillRect(px + 15, py + 15, 30, 30);
-
             g2d.setColor(new Color(255, 152, 0));
             g2d.setStroke(new BasicStroke(2));
             g2d.drawRect(px + 15, py + 15, 30, 30);
-
             g2d.setColor(new Color(0, 0, 0, 30));
             g2d.fillRect(px + 17, py + 42, 26, 3);
-
             g2d.setColor(Color.BLACK);
             g2d.setFont(new Font("Arial", Font.BOLD, 11));
             FontMetrics fm = g2d.getFontMetrics();
@@ -509,7 +493,6 @@ public class GameScreen extends JPanel {
             if (cell == null || cell.equals(" ")) {
                 return new Color(200, 180, 150);
             }
-
             return switch (cell) {
                 case "SEA" -> new Color(30, 140, 200);
                 case "BEACH" -> new Color(220, 200, 120);
