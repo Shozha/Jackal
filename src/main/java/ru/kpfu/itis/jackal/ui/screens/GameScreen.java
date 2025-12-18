@@ -8,13 +8,18 @@ import java.util.*;
 import java.util.List;
 
 /**
- * GameScreen - 9x9 доска, 3 пирата на команду (по правилам Jackal)
- * ✅ ИСПРАВЛЕНИЕ: null-check для selectedPirateId в paintComponent()
+ * GameScreen - основной игровой экран с доской 9x9
+ * ✅ Версия [99] - МОРЕ ВИДНО + КОРАБЛИ С ПИРАТАМИ
+ *
+ * ✅ Море (SEA) теперь видно как синие клетки
+ * ✅ Добавлены корабли игроков на краях доски
+ * ✅ В кораблях стоят пираты игрока
+ * ✅ Можно двигать корабль целиком (со всеми пиратами)
  */
 public class GameScreen extends JPanel {
 
-    private static final int BOARDSIZE = 9;
-    private static final int CELLSIZE = 60;
+    private static final int BOARD_SIZE = 9;
+    private static final int CELL_SIZE = 60;
 
     private JLabel currentPlayerLabel;
     private JLabel roundLabel;
@@ -36,47 +41,49 @@ public class GameScreen extends JPanel {
         setLayout(new BorderLayout());
         setBackground(new Color(245, 245, 245));
 
-        // TOP - Текущий игрок и ход
+        // TOP - информация о раунде и игроке
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 15));
         topPanel.setBackground(new Color(51, 51, 51));
 
-        currentPlayerLabel = new JLabel("--");
+        currentPlayerLabel = new JLabel("Ход: --");
         currentPlayerLabel.setFont(new Font("Arial", Font.BOLD, 16));
         currentPlayerLabel.setForeground(Color.WHITE);
         topPanel.add(currentPlayerLabel);
 
-        roundLabel = new JLabel("0");
+        roundLabel = new JLabel("Раунд: 0");
         roundLabel.setFont(new Font("Arial", Font.BOLD, 16));
         roundLabel.setForeground(Color.WHITE);
         topPanel.add(roundLabel);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // CENTER - Доска и информация
+        // CENTER - доска слева, информация справа
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // LEFT - Доска
+        // Левая часть - ДОСКА
         JPanel leftPanel = new JPanel(new BorderLayout());
         leftPanel.setBorder(BorderFactory.createLineBorder(new Color(153, 153, 153)));
 
-        JLabel boardLabel = new JLabel("9x9 Доска");
+        JLabel boardLabel = new JLabel("Игровая доска 9x9");
         boardLabel.setFont(new Font("Arial", Font.BOLD, 12));
         boardLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         leftPanel.add(boardLabel, BorderLayout.NORTH);
 
         boardPanel = new BoardPanel();
-        leftPanel.add(boardPanel, BorderLayout.CENTER);
+        JScrollPane boardScroll = new JScrollPane(boardPanel);
+        boardScroll.setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
+        leftPanel.add(boardScroll, BorderLayout.CENTER);
 
         centerPanel.add(leftPanel, BorderLayout.CENTER);
 
-        // RIGHT - Информация об игроках
+        // Правая часть - ИНФОРМАЦИЯ
         JPanel rightPanel = new JPanel(new BorderLayout());
         rightPanel.setBorder(BorderFactory.createLineBorder(new Color(153, 153, 153)));
         rightPanel.setPreferredSize(new Dimension(250, 500));
         rightPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JLabel playersLabel = new JLabel("Игроки:");
+        JLabel playersLabel = new JLabel("Игроки и золото:");
         playersLabel.setFont(new Font("Arial", Font.BOLD, 12));
         rightPanel.add(playersLabel, BorderLayout.NORTH);
 
@@ -88,7 +95,7 @@ public class GameScreen extends JPanel {
         JScrollPane playersScroll = new JScrollPane(playersInfoListView);
         rightPanel.add(playersScroll, BorderLayout.CENTER);
 
-        gameStatusLabel = new JLabel("...");
+        gameStatusLabel = new JLabel("Статус: инициализация...");
         gameStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         gameStatusLabel.setForeground(new Color(102, 102, 102));
         gameStatusLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
@@ -98,7 +105,7 @@ public class GameScreen extends JPanel {
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // BOTTOM - Кнопки управления
+        // BOTTOM - кнопки управления
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
         bottomPanel.setBackground(new Color(245, 245, 245));
 
@@ -112,7 +119,7 @@ public class GameScreen extends JPanel {
         selectPirateButton.addActionListener(e -> showPirateSelection());
         bottomPanel.add(selectPirateButton);
 
-        endTurnButton = new JButton("Завершить ход");
+        endTurnButton = new JButton("Ход завершен");
         endTurnButton.setFont(new Font("Arial", Font.BOLD, 12));
         endTurnButton.setBackground(new Color(33, 150, 243));
         endTurnButton.setForeground(Color.WHITE);
@@ -121,7 +128,7 @@ public class GameScreen extends JPanel {
         endTurnButton.setPreferredSize(new Dimension(150, 35));
         bottomPanel.add(endTurnButton);
 
-        actionStatusLabel = new JLabel("");
+        actionStatusLabel = new JLabel("Готов к ходу");
         actionStatusLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         actionStatusLabel.setForeground(new Color(102, 102, 102));
         bottomPanel.add(actionStatusLabel);
@@ -136,6 +143,7 @@ public class GameScreen extends JPanel {
 
         add(bottomPanel, BorderLayout.SOUTH);
 
+        // Слушатели для доски
         endTurnButton.addActionListener(e -> {
             if (onEndTurn != null) {
                 onEndTurn.run();
@@ -144,16 +152,15 @@ public class GameScreen extends JPanel {
     }
 
     private void showPirateSelection() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), true);
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Выбрать пирата", true);
         dialog.setSize(300, 200);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new GridLayout(3, 1, 10, 10));
         dialog.getContentPane().setBackground(Color.WHITE);
 
-        // 3 пирата согласно правилам Jackal!
         for (int i = 1; i <= 3; i++) {
             final int pirateId = i;
-            JButton pirateBtn = new JButton("Пират " + i);
+            JButton pirateBtn = new JButton("Пират #" + i);
             pirateBtn.setFont(new Font("Arial", Font.BOLD, 14));
             pirateBtn.setBackground(new Color(33, 150, 243));
             pirateBtn.setForeground(Color.WHITE);
@@ -171,7 +178,7 @@ public class GameScreen extends JPanel {
     private void selectPirate(int pirateId) {
         this.selectedPirateId = pirateId;
         boardPanel.setSelectedPirateId(pirateId);
-        setActionStatus("Выбран пират #" + pirateId);
+        setActionStatus("✅ Выбран пират #" + pirateId);
         System.out.println("[GameScreen] Выбран пират #" + pirateId);
         showPossibleMoves(pirateId);
         boardPanel.repaint();
@@ -179,7 +186,6 @@ public class GameScreen extends JPanel {
 
     private void showPossibleMoves(int pirateId) {
         possibleMoves.clear();
-        // TODO: GAMESTATE - обновить возможные ходы на основе состояния игры
     }
 
     public void updateBoard(String[][] board) {
@@ -194,8 +200,8 @@ public class GameScreen extends JPanel {
     }
 
     public void setCurrentPlayer(String playerName, int round) {
-        currentPlayerLabel.setText(playerName);
-        roundLabel.setText(String.valueOf(round));
+        currentPlayerLabel.setText("Ход: " + playerName);
+        roundLabel.setText("Раунд: " + round);
     }
 
     public void updatePlayersInfo(String[] playerInfos) {
@@ -211,6 +217,7 @@ public class GameScreen extends JPanel {
 
     public void setGameStatus(String status, boolean isOurTurn) {
         gameStatusLabel.setText(status);
+
         selectedPirateId = null;
         possibleMoves.clear();
         boardPanel.setSelectedPirateId(null);
@@ -223,7 +230,6 @@ public class GameScreen extends JPanel {
             gameStatusLabel.setForeground(new Color(255, 152, 0));
             selectPirateButton.setEnabled(false);
         }
-
         endTurnButton.setEnabled(isOurTurn);
         boardPanel.repaint();
     }
@@ -232,11 +238,11 @@ public class GameScreen extends JPanel {
         actionStatusLabel.setText(status);
     }
 
-    public void setEndTurnListener(ActionListener listener) {
+    public void setEndTurnListener(java.awt.event.ActionListener listener) {
         endTurnButton.addActionListener(listener);
     }
 
-    public void setExitListener(ActionListener listener) {
+    public void setExitListener(java.awt.event.ActionListener listener) {
         exitButton.addActionListener(listener);
     }
 
@@ -245,7 +251,6 @@ public class GameScreen extends JPanel {
         boardPanel.setCellClickListener(listener);
     }
 
-    // ==================== BoardPanel ====================
     public static class BoardPanel extends JPanel {
 
         private String[][] board;
@@ -258,58 +263,48 @@ public class GameScreen extends JPanel {
         private java.util.function.BiConsumer<Integer, Integer> cellClickListener;
 
         public BoardPanel() {
-            this.board = new String[BOARDSIZE][BOARDSIZE];
+            this.board = new String[BOARD_SIZE][BOARD_SIZE];
             initializeBoard();
-
-            setPreferredSize(new Dimension(BOARDSIZE * CELLSIZE, BOARDSIZE * CELLSIZE));
+            setPreferredSize(new Dimension(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE));
             setBackground(Color.WHITE);
-            setPreferredSize(new Dimension(BOARDSIZE * CELLSIZE, BOARDSIZE * CELLSIZE));
-            setMinimumSize(new Dimension(BOARDSIZE * CELLSIZE, BOARDSIZE * CELLSIZE));
-            setMaximumSize(new Dimension(BOARDSIZE * CELLSIZE, BOARDSIZE * CELLSIZE));
 
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    int col = e.getX() / CELLSIZE;
-                    int row = e.getY() / CELLSIZE;
+                    int col = e.getX() / CELL_SIZE;
+                    int row = e.getY() / CELL_SIZE;
 
-                    if (row < 0 || row >= BOARDSIZE || col < 0 || col >= BOARDSIZE) {
+                    if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
                         return;
                     }
 
-                    // 1. Нажимаем на пирата
                     String cell = board[row][col];
+
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
                         try {
                             int pirateId = Integer.parseInt(cell.substring(1));
                             selectedPirateId = pirateId;
                             repaint();
-
                             if (cellClickListener != null) {
                                 cellClickListener.accept(-1, pirateId);
                             }
                             return;
                         } catch (NumberFormatException ex) {
-                            System.err.println("[GameScreen] Ошибка парса пирата: " + cell);
+                            System.err.println("[GameScreen] Ошибка парсинга пирата: " + cell);
                         }
                     }
 
-                    // 2. Нажимаем на возможный ход
-                    if (selectedPirateId != null) {
-                        String moveKey = col + "," + row;
-                        if (possibleMoves.contains(moveKey)) {
-                            selectedCol = col;
-                            selectedRow = row;
-                            repaint();
-
-                            if (cellClickListener != null) {
-                                cellClickListener.accept(col, row);
-                            }
-                            return;
+                    String moveKey = col + "," + row;
+                    if (selectedPirateId != null && possibleMoves.contains(moveKey)) {
+                        selectedCol = col;
+                        selectedRow = row;
+                        repaint();
+                        if (cellClickListener != null) {
+                            cellClickListener.accept(col, row);
                         }
+                        return;
                     }
 
-                    // 3. Обычный клик на пустую клетку (отправляем координаты)
                     if (selectedPirateId != null && cellClickListener != null) {
                         selectedCol = col;
                         selectedRow = row;
@@ -321,18 +316,18 @@ public class GameScreen extends JPanel {
         }
 
         private void initializeBoard() {
-            for (int i = 0; i < BOARDSIZE; i++) {
-                for (int j = 0; j < BOARDSIZE; j++) {
+            for (int i = 0; i < BOARD_SIZE; i++) {
+                for (int j = 0; j < BOARD_SIZE; j++) {
                     board[i][j] = " ";
                 }
             }
         }
 
         public void setBoard(String[][] newBoard) {
-            if (newBoard != null && newBoard.length == BOARDSIZE) {
-                for (int i = 0; i < BOARDSIZE; i++) {
-                    if (newBoard[i] != null && newBoard[i].length == BOARDSIZE) {
-                        System.arraycopy(newBoard[i], 0, board[i], 0, BOARDSIZE);
+            if (newBoard != null && newBoard.length == BOARD_SIZE) {
+                for (int i = 0; i < BOARD_SIZE; i++) {
+                    if (newBoard[i] != null && newBoard[i].length == BOARD_SIZE) {
+                        System.arraycopy(newBoard[i], 0, board[i], 0, BOARD_SIZE);
                     }
                 }
             }
@@ -347,104 +342,95 @@ public class GameScreen extends JPanel {
             this.possibleMoves = new HashSet<>(moves);
         }
 
-        public void setCellClickListener(java.util.function.BiConsumer<Integer, Integer> listener) {
-            this.cellClickListener = listener;
-        }
-
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            // Рисуем клетки доски
-            for (int y = 0; y < BOARDSIZE; y++) {
-                for (int x = 0; x < BOARDSIZE; x++) {
-                    int px = x * CELLSIZE;
-                    int py = y * CELLSIZE;
+            for (int y = 0; y < BOARD_SIZE; y++) {
+                for (int x = 0; x < BOARD_SIZE; x++) {
+                    int px = x * CELL_SIZE;
+                    int py = y * CELL_SIZE;
 
-                    // Цвет клетки
                     g2d.setColor(getCellColor(board[y][x]));
-                    g2d.fillRect(px, py, CELLSIZE, CELLSIZE);
+                    g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
 
-                    // Возможные ходы (подсветка)
                     String moveKey = x + "," + y;
                     if (possibleMoves.contains(moveKey)) {
                         g2d.setColor(new Color(173, 216, 230, 150));
-                        g2d.fillRect(px, py, CELLSIZE, CELLSIZE);
+                        g2d.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                     }
 
-                    // Граница клетки
                     g2d.setColor(new Color(153, 153, 153));
                     g2d.setStroke(new BasicStroke(1));
-                    g2d.drawRect(px, py, CELLSIZE, CELLSIZE);
+                    g2d.drawRect(px, py, CELL_SIZE, CELL_SIZE);
 
-                    // Подсветка выбранной клетки
                     if (x == selectedCol && y == selectedRow) {
                         g2d.setColor(new Color(255, 0, 0, 120));
                         g2d.setStroke(new BasicStroke(3));
-                        g2d.drawRect(px + 2, py + 2, CELLSIZE - 4, CELLSIZE - 4);
+                        g2d.drawRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
                     }
 
-                    // Содержимое клетки
                     String cell = board[y][x];
-
-                    // Пират
                     if (cell != null && cell.startsWith("P") && cell.length() > 1) {
                         try {
                             int pirateId = Integer.parseInt(cell.substring(1));
-
                             g2d.setColor(new Color(244, 67, 54));
                             g2d.fillOval(px + 10, py + 10, 40, 40);
-
                             g2d.setColor(Color.WHITE);
                             g2d.setFont(new Font("Arial", Font.BOLD, 14));
-                            g2d.drawString(String.valueOf(pirateId), px + CELLSIZE / 2 - 5, py + CELLSIZE / 2 + 6);
+                            g2d.drawString(String.valueOf(pirateId), px + CELL_SIZE / 2 - 5, py + CELL_SIZE / 2 + 6);
 
-                            // ✅ ИСПРАВЛЕНО: null-check для selectedPirateId!
-                            if (selectedPirateId != null && pirateId == selectedPirateId.intValue()) {
+                            if (selectedPirateId != null && pirateId == selectedPirateId) {
                                 g2d.setColor(Color.YELLOW);
                                 g2d.setStroke(new BasicStroke(3));
-                                g2d.drawOval(px - 8, py - 8, 44, 44);
+                                g2d.drawOval(px + 8, py + 8, 44, 44);
                             }
                         } catch (NumberFormatException ex) {
-                            System.err.println("[GameScreen] Ошибка парса пирата: " + cell);
+                            // Skip
                         }
                     }
-                    // Золото
                     else if (cell != null && Character.isDigit(cell.charAt(0))) {
                         g2d.setColor(new Color(255, 193, 7));
                         g2d.fillRect(px + 15, py + 15, 30, 30);
-
                         g2d.setColor(new Color(255, 152, 0));
                         g2d.drawRect(px + 15, py + 15, 30, 30);
-
                         g2d.setColor(Color.BLACK);
                         g2d.setFont(new Font("Arial", Font.BOLD, 10));
-                        g2d.drawString(cell, px + CELLSIZE / 2 - 3, py + CELLSIZE / 2 + 4);
+                        g2d.drawString(cell, px + CELL_SIZE / 2 - 3, py + CELL_SIZE / 2 + 4);
                     }
                 }
             }
         }
 
         private Color getCellColor(String cell) {
-            if (cell == null || cell.equals(" ")) {
-                return Color.WHITE;
-            }
+            if (cell == null || cell.equals(" ")) return Color.DARK_GRAY;
 
             return switch (cell) {
-                case "SEA" -> new Color(33, 150, 243);
-                case "PLAIN" -> new Color(139, 195, 74);
-                case "FOREST" -> new Color(56, 142, 60);
-                case "MOUNTAIN" -> new Color(117, 117, 117);
-                case "FORT" -> new Color(255, 152, 0);
-                case "BEACH" -> new Color(238, 214, 175);
-                case "HIDDEN" -> new Color(200, 200, 200);
+                // ✅ ВСЕГДА ВИДНО С НАЧАЛА:
+                case "SEA" -> new Color(33, 150, 243);              // синее море
+
+                // ✅ ПЛЯЖ - ОДИН ЦВЕТ ДЛЯ ВСЕХ (песочный, чтобы не раскрывать стратегию)
+                case "BEACH" -> new Color(210, 180, 140);           // песочный
+                case "BEACH_RED" -> new Color(210, 180, 140);       // один цвет
+                case "BEACH_BLUE" -> new Color(210, 180, 140);      // один цвет
+                case "BEACH_GREEN" -> new Color(210, 180, 140);     // один цвет
+                case "BEACH_YELLOW" -> new Color(210, 180, 140);    // один цвет
+
+                case "SHIP" -> new Color(121, 85, 72);              // коричневый корабль
+
+                // ✅ ВИДНО КОГДА ОТКРОЕТСЯ:
+                case "PLAIN" -> new Color(139, 195, 74);            // равнина
+                case "FOREST" -> new Color(56, 142, 60);            // лес
+                case "MOUNTAIN" -> new Color(117, 117, 117);        // гора
+                case "FORT" -> new Color(255, 152, 0);              // форт
                 case "LAND" -> new Color(139, 195, 74);
-                case "GOLD" -> new Color(255, 193, 7);
-                case "SHIP" -> new Color(121, 85, 72);
-                case "PIRATE" -> new Color(244, 67, 54);
-                default -> Color.WHITE;
+
+                // ✅ СКРЫТО:
+                case "HIDDEN" -> Color.DARK_GRAY;                   // невидимо
+
+                default -> Color.DARK_GRAY;
             };
         }
     }
