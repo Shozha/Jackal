@@ -243,7 +243,9 @@ public class GameController {
 
         SwingUtilities.invokeLater(() -> {
             try {
-                if (type == MessageType.GAME_STATE) {
+                if (type == MessageType.CHAT_MESSAGE) {
+                    handleChatMessage(message);
+                } else if (type == MessageType.GAME_STATE) {
                     updateGameState(message);
                 } else if (type == MessageType.GAME_START) {
                     System.out.println("[GameController] GAME_START, переходим в игру");
@@ -261,6 +263,21 @@ public class GameController {
                 ex.printStackTrace();
             }
         });
+    }
+
+    private void handleChatMessage(GameMessage message) {
+        try {
+            JsonObject data = JsonParser.parseString(message.getData()).getAsJsonObject();
+            String chatMessage = data.get("message").getAsString();
+
+            if (gameScreen != null) {
+                gameScreen.addLog(chatMessage);
+            }
+
+            System.out.println("[GameController] Chat: " + chatMessage);
+        } catch (Exception e) {
+            System.err.println("[GameController] Ошибка обработки CHAT_MESSAGE: " + e.getMessage());
+        }
     }
 
     private void updateGameState(GameMessage message) throws Exception {

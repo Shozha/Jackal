@@ -296,7 +296,7 @@ public class GameScreen extends JPanel {
                         return;
                     }
                     String cell = board[row][col];
-                    if (cell != null && cell.startsWith("P") && cell.length() > 1) {
+                    if (cell != null && cell.startsWith("P") && cell.length() == 2) {
                         try {
                             int pirateId = Integer.parseInt(cell.substring(1));
                             selectedPirateId = pirateId;
@@ -306,7 +306,9 @@ public class GameScreen extends JPanel {
                             }
                             return;
                         } catch (NumberFormatException ex) {
-                            System.err.println("[GameScreen] Ошибка парсинга пирата: " + cell);
+                            System.err.println("[GameScreen] ❌ Ошибка парсинга пирата. Значение: '" + cell +
+                                    "', Подстрока: '" + cell.substring(1) + "'");
+                            ex.printStackTrace();
                         }
                     }
                     String moveKey = col + "," + row;

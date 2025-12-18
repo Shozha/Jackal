@@ -26,8 +26,10 @@ public class Pirate {
     }
 
     public void collectGold(int amount) {
-        this.goldCarrying += amount;
-        System.out.println("Пират #" + id + " собрал " + amount + " золота. Всего: " + this.goldCarrying);
+        if (this.goldCarrying == 0) {
+            this.goldCarrying = amount;
+            System.out.println("Пират #" + id + " собрал " + amount + " золота. Всего: " + this.goldCarrying);
+        }
     }
 
     public int depositGold() {
