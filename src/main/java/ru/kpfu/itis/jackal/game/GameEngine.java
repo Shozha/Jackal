@@ -3,6 +3,7 @@ package ru.kpfu.itis.jackal.game;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import ru.kpfu.itis.jackal.common.*;
+import ru.kpfu.itis.jackal.dto.*;
 import ru.kpfu.itis.jackal.network.protocol.*;
 import ru.kpfu.itis.jackal.server.ClientHandler;
 import com.google.gson.Gson;
@@ -663,34 +664,5 @@ public class GameEngine {
         }
         clients.remove(client);
         broadcastGameState();
-    }
-
-    public static class GameStateDto {
-        public List<PlayerDto> players = new ArrayList<>();
-        public String currentPlayerId;
-        public int turnNumber;
-        public String[][] board;
-    }
-
-    public static class PlayerDto {
-        public String id;
-        public String name;
-        public boolean ready;
-        public int score;
-    }
-
-    public static class CellDto {
-        public String type;
-        public String content;
-        public PirateDto pirate;
-        public GoldDto gold;
-    }
-
-    public static class PirateDto {
-        public int id;
-    }
-
-    public static class GoldDto {
-        public int amount;
     }
 }
