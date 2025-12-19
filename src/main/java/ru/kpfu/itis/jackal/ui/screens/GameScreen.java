@@ -6,7 +6,6 @@ import ru.kpfu.itis.jackal.ui.theme.GameTheme;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
 import java.util.function.BiConsumer;

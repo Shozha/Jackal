@@ -350,35 +350,42 @@ public class GameEngine {
         if (cell == null) return;
 
         if (cell.hasTrap()) {
-            System.out.println("[GameEngine] ⚠️ ЛОВУШКА! Пират возвращается на пляж");
+            System.out.println("[GameEngine] ⚠️ ЛОВУШКА! Пират возвращается");
             returnPirateToShip(pirate, player);
             return;
         }
 
         if (cell.hasArrow()) {
             Direction dir = cell.getArrowDirection();
-            System.out.println("[GameEngine] 🔱 СТРЕЛКА в направлении " + dir);
+            System.out.println("[GameEngine] 🔱 СТРЕЛКА: " + dir);
             pushPirate(pirate, dir, player);
             return;
         }
 
-        System.out.println("[GameEngine] Проверяем золото: canCollectGold=" + cell.canCollectGold() +
-                ", goldCarrying=" + pirate.getGoldCarrying());
+        if (cell.getType() == CellType.BEACH && pirate.getGoldCarrying() > 0) {
+            int goldAmount = pirate.getGoldCarrying();
+            player.addGoldToScore(goldAmount);
+            pirate.setGoldCarrying(0);
+
+            System.out.println("[GameEngine] ⛵ КОРАБЛЬ! " + player.getName() +
+                    " высадил " + goldAmount + " золота! Счет: " + player.getScore());
+
+            broadcastLog("⛵ " + player.getName() + " сдал " + goldAmount +
+                    " золота на корабль! Счет: " + player.getScore());
+            broadcastGameState();
+            return;
+        }
+
         if (cell.canCollectGold() && pirate.getGoldCarrying() == 0) {
             int amount = cell.getGoldAmount();
-            System.out.println("[GameEngine] 💰 БЕРЕМ ЗОЛОТО! Количество: " + amount);
-
             pirate.setGoldCarrying(amount);
             cell.setContent(CellContent.EMPTY);
-            cell.setGold(null);
 
-            System.out.println("[GameEngine] 💰 Пират #" + pirate.getId() + " ВЗЯЛ " + amount +
-                    " золота! Несет: " + pirate.getGoldCarrying());
+            System.out.println("[GameEngine] 💰 Пират #" + pirate.getId() +
+                    " взял " + amount + " золота");
 
-            broadcastLog(player.getName() + " взял " + amount + " золота!");
-        } else {
-            broadcastLog(player.getName() + " не может взять золото - уже несет " +
-                    pirate.getGoldCarrying());
+            broadcastLog("💰 " + player.getName() + " нашел " + amount + " золота!");
+            broadcastGameState();
         }
     }
 
@@ -569,24 +576,17 @@ public class GameEngine {
     private void broadcastGameState() {
         try {
             JsonObject stateJson = new JsonObject();
-
             stateJson.addProperty("gameStarted", gameState.isGameStarted());
             stateJson.addProperty("gameFinished", gameState.isGameFinished());
             stateJson.addProperty("currentPlayerId", gameState.getCurrentPlayerId());
             stateJson.addProperty("turnNumber", gameState.getTurnNumber());
 
+            String[][] boardData = buildBoardJson();
             JsonArray boardArray = new JsonArray();
-            Board board = gameState.getBoard();
-
-            for (int y = 0; y < 9; y++) {
+            for (String[] row : boardData) {
                 JsonArray rowArray = new JsonArray();
-                for (int x = 0; x < 9; x++) {
-                    Cell cell = board.getCell(x, y);
-                    if (cell != null) {
-                        rowArray.add(cell.toJsonObject());
-                    } else {
-                        rowArray.add(new Cell(CellType.SEA).toJsonObject());
-                    }
+                for (String cellJson : row) {
+                    rowArray.add(gson.toJsonTree(gson.fromJson(cellJson, Object.class)));
                 }
                 boardArray.add(rowArray);
             }
@@ -611,14 +611,12 @@ public class GameEngine {
                 try {
                     client.sendMessage(stateMessage);
                 } catch (Exception e) {
-                    System.err.println("[GameEngine] Ошибка отправки GAME_STATE: " + e.getMessage());
+                    System.err.println("[GameEngine] Ошибка отправки: " + e.getMessage());
                 }
             }
-
-            System.out.println("[GameEngine] GAME_STATE отправлено всем клиентам");
-
+            System.out.println("[GameEngine] GAME_STATE отправлено");
         } catch (Exception e) {
-            System.err.println("[GameEngine] Ошибка в broadcastGameState():");
+            System.err.println("[GameEngine] Ошибка broadcastGameState: ");
             e.printStackTrace();
         }
     }
@@ -713,24 +711,23 @@ public class GameEngine {
         Player player = getPlayer(playerId);
         if (player == null) return;
 
-        System.out.println("[GameEngine] ⏹️ Завершение хода игрока: " + player.getName());
+        System.out.println("[GameEngine] ⏹️ Конец хода: " + player.getName());
 
         for (Pirate pirate : player.getPirates()) {
             if (pirate.getGoldCarrying() > 0) {
                 int goldAmount = pirate.getGoldCarrying();
                 player.addGoldToScore(goldAmount);
-
-                System.out.println("[GameEngine] 💰 Игрок " + player.getName() +
-                        " получил " + goldAmount + " золота! Всего: " + player.getScore());
-
-                broadcastLog(player.getName() + " вернулся с " + goldAmount +
-                        " золота! Счет: " + player.getScore());
-
                 pirate.setGoldCarrying(0);
+
+                System.out.println("[GameEngine] ⛵ " + player.getName() +
+                        " вернулся с " + goldAmount + " золота!");
+                broadcastLog("🏁 " + player.getName() + " вернулся на корабль с " +
+                        goldAmount + " золота! Счет: " + player.getScore());
             }
         }
 
         nextTurn();
+        broadcastGameState();
     }
 
     private void broadcastLog(String message) {
