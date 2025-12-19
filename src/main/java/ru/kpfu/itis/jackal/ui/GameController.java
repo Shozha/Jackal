@@ -24,7 +24,7 @@ public class GameController {
     private String playerName;
     private String playerId;
     private String currentPlayer;
-    private String currentPlayerName;  // НОВОЕ: имя текущего игрока
+    private String currentPlayerName;
     private int currentRound;
     private boolean isHost = false;
     private Integer selectedPirateId = null;
