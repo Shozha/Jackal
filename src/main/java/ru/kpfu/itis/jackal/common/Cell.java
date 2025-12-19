@@ -4,9 +4,6 @@ import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Getter
 @Setter
 public class Cell {
@@ -16,7 +13,6 @@ public class Cell {
     private boolean isVisible;
     private Gold gold;
     private Pirate pirate;
-    private List<Pirate> piratesOnCell = new ArrayList<>();
 
     public Cell() {
         this(CellType.SEA, CellContent.EMPTY);
@@ -142,26 +138,5 @@ public class Cell {
             case ARROW_RIGHT -> Direction.RIGHT;
             default -> null;
         };
-    }
-
-    public void addPirate(Pirate pirate) {
-        if (pirate != null && !piratesOnCell.contains(pirate)) {
-            piratesOnCell.add(pirate);
-        }
-    }
-
-    public void removePirate(Pirate pirate) {
-        piratesOnCell.remove(pirate);
-    }
-
-    public List<Pirate> getAllPirates() {
-        return new ArrayList<>(piratesOnCell);
-    }
-
-    public void setPirate(Pirate pirate) {
-        piratesOnCell.clear();
-        if (pirate != null) {
-            piratesOnCell.add(pirate);
-        }
     }
 }
