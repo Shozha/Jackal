@@ -370,7 +370,7 @@ public class GameEngine {
             System.out.println("[GameEngine] КОРАБЛЬ! " + player.getName() +
                     " высадил " + goldAmount + " золота! Счет: " + player.getScore());
 
-            broadcastLog("⛵ " + player.getName() + " сдал " + goldAmount +
+            broadcastLog(player.getName() + " сдал " + goldAmount +
                     " золота на корабль! Счет: " + player.getScore());
             broadcastGameState();
             return;
