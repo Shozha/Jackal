@@ -386,6 +386,9 @@ public class GameEngine {
 
             broadcastLog(player.getName() + " нашел " + amount + " золота!");
             broadcastGameState();
+        } else if (pirate.getGoldCarrying() > 0) {
+            int amount = pirate.getGoldCarrying();
+            broadcastLog(player.getName() + " уже несёт " + amount + " золота!");
         }
     }
 
